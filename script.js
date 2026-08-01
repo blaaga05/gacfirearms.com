@@ -1,33 +1,6 @@
-const menuButton = document.querySelector('.menu-toggle');
-const navigation = document.querySelector('.site-nav');
-
-menuButton?.addEventListener('click', () => {
-  const isOpen = navigation.classList.toggle('open');
-  menuButton.setAttribute('aria-expanded', String(isOpen));
-});
-
-document.querySelectorAll('.site-nav a').forEach((link) => {
-  link.addEventListener('click', () => {
-    navigation.classList.remove('open');
-    menuButton?.setAttribute('aria-expanded', 'false');
-  });
-});
-
-document.getElementById('year').textContent = new Date().getFullYear();
-
-const contactForm = document.getElementById('contact-form');
-contactForm?.addEventListener('submit', (event) => {
-  event.preventDefault();
-
-  const formData = new FormData(contactForm);
-  const name = String(formData.get('name') || '').trim();
-  const email = String(formData.get('email') || '').trim();
-  const destination = String(formData.get('department') || 'info@gacfirearms.com');
-  const message = String(formData.get('message') || '').trim();
-  const departmentName = contactForm.querySelector('select[name="department"] option:checked')?.textContent || 'Website Inquiry';
-
-  const subject = encodeURIComponent(`${departmentName} from ${name}`);
-  const body = encodeURIComponent(`Name: ${name}\nEmail: ${email}\nInquiry: ${departmentName}\n\n${message}`);
-
-  window.location.href = `mailto:${destination}?subject=${subject}&body=${body}`;
-});
+const toggle=document.querySelector('.menu-toggle');
+const nav=document.querySelector('.site-nav');
+if(toggle&&nav){toggle.addEventListener('click',()=>{const open=nav.classList.toggle('open');toggle.setAttribute('aria-expanded',String(open));document.body.classList.toggle('menu-open',open)});nav.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{nav.classList.remove('open');toggle.setAttribute('aria-expanded','false');document.body.classList.remove('menu-open')}));}
+const year=document.getElementById('year');if(year)year.textContent=new Date().getFullYear();
+const form=document.getElementById('contact-form');
+if(form){form.addEventListener('submit',e=>{e.preventDefault();const data=new FormData(form);const recipient=data.get('department');const subject=encodeURIComponent(`GAC website inquiry from ${data.get('name')}`);const body=encodeURIComponent(`Name: ${data.get('name')}\nEmail: ${data.get('email')}\n\nMessage:\n${data.get('message')}`);window.location.href=`mailto:${recipient}?subject=${subject}&body=${body}`;});}
