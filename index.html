@@ -1,153 +1,120 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Gassett Arms Company — custom firearms, premium upgrades, and personalized craftsmanship. Federal firearms licensing pending." />
-  <meta name="theme-color" content="#050505" />
-  <title>Gassett Arms Company | Your Vision. Our Craft.</title>
-  <link rel="icon" href="assets/gac-mark.png" type="image/png" />
-  <link rel="preload" href="assets/gac-hero-rifle.jpg" as="image" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="GAC firearm discovery and customization prototype" />
+  <title>GAC — Discover It. Build It. GAC.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to content</a>
-
-  <header class="site-header" id="top">
-    <div class="header-inner shell">
-      <a class="brand" href="#top" aria-label="Gassett Arms Company home">
-        <img src="assets/gac-logo-banner.png" alt="Gassett Arms Company logo" />
-      </a>
-      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
-        <span></span><span></span><span></span><span class="sr-only">Toggle navigation</span>
-      </button>
-      <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
-        <a href="#about">About</a>
-        <a href="#services">Future Services</a>
-        <a href="apparel.html">Apparel</a>
-        <a href="#values">Our Standard</a>
-        <a href="#status">Licensing</a>
-        <a class="nav-cta" href="#contact">Contact</a>
-      </nav>
-    </div>
+  <header class="topbar">
+    <button class="brand" data-view="home" aria-label="GAC home">
+      <span class="brand-mark">GAC</span>
+      <span class="brand-copy">Discover It. Build It. GAC.</span>
+    </button>
+    <nav class="desktop-nav" aria-label="Primary navigation">
+      <button data-view="discover">Discover</button>
+      <button data-view="builder">Build</button>
+      <button data-view="saved">Saved</button>
+    </nav>
+    <button class="outline-btn" id="quoteButton">Request GAC Quote</button>
   </header>
 
-  <main id="main">
-    <section class="hero" aria-labelledby="hero-title">
-      <div class="shell hero-grid">
-        <div class="hero-copy-block">
-          <img class="hero-logo" src="assets/gac-logo-banner.png" alt="GAC — Gassett Arms Company" />
-          <p class="hero-tagline" id="hero-title">Your Vision. Our Craft.</p>
-          <p class="hero-copy">Custom firearms, precision upgrades, and personalized builds shaped around your goals.</p>
+  <main>
+    <section id="home" class="view active">
+      <div class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">GASSETT ARMS COMPANY</p>
+          <h1>Discover it.<br><span>Build it.</span> GAC.</h1>
+          <p class="hero-text">Explore firearms, compare specifications, and create compatible accessory builds in one clean workspace.</p>
           <div class="hero-actions">
-            <a class="button button-primary" href="#about">Discover GAC</a>
-            <a class="button button-secondary" href="#contact">Contact Us</a>
+            <button class="primary-btn" data-view="builder">Start Building</button>
+            <button class="secondary-btn" data-view="discover">Browse Firearms</button>
           </div>
-          <p class="pending-note">Federal firearms licensing pending. Regulated firearm sales, manufacturing, transfers, and gunsmithing services are not currently available.</p>
+          <p class="compliance-note">Prototype only. Firearm transactions are not processed in this app. All transfers must follow applicable laws and FFL requirements.</p>
         </div>
-        <div class="hero-visual" role="img" aria-label="Custom GAC rifle displayed in a dark workshop"></div>
-      </div>
-    </section>
-
-    <section class="feature-strip" aria-label="Company principles">
-      <div class="shell feature-grid">
-        <article><span>01</span><h2>Custom by Design</h2><p>Every future build begins with the customer's vision.</p></article>
-        <article><span>02</span><h2>Detail Driven</h2><p>Careful selection, clean presentation, and pride in every detail.</p></article>
-        <article><span>03</span><h2>Customer Focused</h2><p>Clear communication and a personal experience from start to finish.</p></article>
-        <article><span>04</span><h2>Built on Integrity</h2><p>Honesty, accountability, and respect guide how GAC does business.</p></article>
-      </div>
-    </section>
-
-    <section class="section about" id="about">
-      <div class="shell split-layout">
-        <div class="section-copy">
-          <p class="eyebrow">About GAC</p>
-          <h2>A passion for firearms. A vision for something personal.</h2>
-          <p>Gassett Arms Company was founded from a genuine enthusiasm for firearms, shooting, accessories, and the process of turning a standard firearm into something distinctive. What began as a hobby of upgrading, personalizing, and trying new products has grown into a vision for a company centered on custom work, craftsmanship, and customer satisfaction.</p>
-          <p>GAC is being built to become a trusted destination for custom AR rifles, personalized pistols and rifles, premium accessories, and carefully selected firearms from respected manufacturers. As the company grows, planned capabilities include laser engraving, specialized finishes, and additional customization services.</p>
-          <p>Integrity, honesty, respect, and attention to detail shape every part of the brand. The goal is simple: help every customer create a firearm they are proud to own.</p>
-        </div>
-        <div class="logo-panel">
-          <img src="assets/gac-logo-banner.png" alt="Metallic GAC logo" />
-          <p>Your Vision. Our Craft.</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="section services" id="services">
-      <div class="shell">
-        <p class="eyebrow">Future Services</p>
-        <h2>Built around the customer—not just the catalog.</h2>
-        <p class="section-intro">These offerings are planned for after all required federal and local approvals are received.</p>
-        <div class="card-grid">
-          <article class="info-card"><span>01</span><h3>Custom AR Builds</h3><p>Personalized AR-platform configurations combining dependable components, purposeful upgrades, and a distinct finished look.</p><small>Planned — licensing pending</small></article>
-          <article class="info-card"><span>02</span><h3>Firearms & Accessories</h3><p>Carefully selected firearms, optics, accessories, and upgrade components from trusted manufacturers.</p><small>Planned — licensing pending</small></article>
-          <article class="info-card"><span>03</span><h3>Personalized Upgrades</h3><p>Future customization services focused on appearance, function, ergonomics, and the customer's intended use.</p><small>Planned — not yet available</small></article>
-          <article class="info-card"><span>04</span><h3>Laser Engraving</h3><p>Planned engraving options for branding, personalization, identification, and unique visual details.</p><small>Future capability</small></article>
-          <article class="info-card"><span>05</span><h3>Dealer Transfers</h3><p>A straightforward local transfer experience built around communication, professionalism, and compliance.</p><small>Pending licensing</small></article>
-          <article class="info-card"><span>06</span><h3>GAC-Branded Products</h3><p>A long-term vision for original GAC rifles, components, accessories, and product lines with a recognizable custom identity.</p><small>In development</small></article>
-        </div>
-      </div>
-    </section>
-
-    <section class="section values" id="values">
-      <div class="shell values-layout">
-        <div><p class="eyebrow">Our Standard</p><h2>Craftsmanship that earns trust.</h2></div>
-        <div class="values-list">
-          <div><strong>Craftsmanship</strong><span>Every detail matters.</span></div>
-          <div><strong>Customization</strong><span>Built around the customer's vision.</span></div>
-          <div><strong>Integrity</strong><span>Honest service and dependable communication.</span></div>
-          <div><strong>Quality</strong><span>Products and work we would confidently own ourselves.</span></div>
-          <div><strong>Innovation</strong><span>Always learning, testing, and refining.</span></div>
-          <div><strong>Relationships</strong><span>Building lasting trust beyond the sale.</span></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section status" id="status">
-      <div class="shell status-box">
-        <div><p class="eyebrow">Current Status</p><h2>Licensing in progress.</h2></div>
-        <div><p>Gassett Arms Company is currently completing federal and local licensing requirements. The company is not yet conducting regulated firearm sales, manufacturing, dealer transfers, or gunsmithing services. Those services will only begin after all required approvals have been received.</p><p class="status-tag">FFL application pending</p></div>
-      </div>
-    </section>
-
-    <section class="section contact" id="contact">
-      <div class="shell contact-layout">
-        <div>
-          <p class="eyebrow">Contact</p>
-          <h2>Start the conversation.</h2>
-          <p>Questions about GAC, future services, dealer relationships, or launch updates are welcome.</p>
-          <div class="contact-addresses">
-            <a href="mailto:info@gacfirearms.com"><span>Info</span><strong>info@gacfirearms.com</strong></a>
-            <a href="mailto:sales@gacfirearms.com"><span>Sales</span><strong>sales@gacfirearms.com</strong></a>
-            <a href="mailto:dealer@gacfirearms.com"><span>Dealer</span><strong>dealer@gacfirearms.com</strong></a>
+        <div class="hero-panel">
+          <div class="panel-label">FEATURED BUILD</div>
+          <div class="rifle-art" aria-label="Stylized rifle builder preview">
+            <div class="stock"></div><div class="receiver"></div><div class="handguard"></div><div class="barrel"></div><div class="optic"></div><div class="grip"></div><div class="mag"></div>
+          </div>
+          <div class="featured-meta">
+            <div><strong>GAC Recon</strong><span>AR-15 Platform</span></div>
+            <button class="small-btn" data-build-preset="ar15">Customize</button>
           </div>
         </div>
-        <form class="contact-form" id="contact-form">
-          <label>Name<input type="text" name="name" autocomplete="name" required /></label>
-          <label>Email<input type="email" name="email" autocomplete="email" required /></label>
-          <label>Inquiry Type
-            <select name="department" required>
-              <option value="info@gacfirearms.com">General Information</option>
-              <option value="sales@gacfirearms.com">Sales / Future Products</option>
-              <option value="dealer@gacfirearms.com">Dealer Inquiry</option>
-            </select>
-          </label>
-          <label>Message<textarea name="message" rows="6" required></textarea></label>
-          <button class="button button-primary" type="submit">Create Email</button>
-          <p class="form-note">This opens your email app with the message addressed to the selected GAC department.</p>
-        </form>
       </div>
+
+      <section class="content-section">
+        <div class="section-heading"><div><p class="eyebrow">START HERE</p><h2>Choose your path</h2></div></div>
+        <div class="feature-grid">
+          <button class="feature-card" data-view="discover"><span class="icon">⌕</span><h3>Discover</h3><p>Search firearms by manufacturer, platform, caliber, and features.</p></button>
+          <button class="feature-card" data-build-preset="ar15"><span class="icon">◇</span><h3>Build an AR-15</h3><p>Create a compatible build with optics, furniture, lights, and muzzle devices.</p></button>
+          <button class="feature-card" data-build-preset="glock19"><span class="icon">▱</span><h3>Build a Glock 19</h3><p>Preview compatible optics, lights, magazines, sights, and finishes.</p></button>
+        </div>
+      </section>
+    </section>
+
+    <section id="discover" class="view">
+      <div class="page-head"><div><p class="eyebrow">CATALOG</p><h1>Discover firearms</h1><p>Prototype catalog with expandable manufacturer data.</p></div></div>
+      <div class="toolbar">
+        <input id="searchInput" type="search" placeholder="Search manufacturer, model, caliber..." />
+        <select id="platformFilter"><option value="all">All platforms</option><option value="AR-15">AR-15</option><option value="Pistol">Pistol</option></select>
+        <select id="manufacturerFilter"><option value="all">All manufacturers</option></select>
+      </div>
+      <div id="catalogGrid" class="catalog-grid"></div>
+    </section>
+
+    <section id="builder" class="view">
+      <div class="page-head builder-head"><div><p class="eyebrow">COMPATIBILITY BUILDER</p><h1 id="builderTitle">Build your setup</h1><p id="builderSubtitle">Choose a base firearm to begin.</p></div><button class="outline-btn" id="saveBuildButton">Save Build</button></div>
+      <div class="builder-layout">
+        <aside class="builder-sidebar">
+          <label>Base firearm</label>
+          <select id="baseFirearmSelect"></select>
+          <div id="categoryButtons" class="category-buttons"></div>
+        </aside>
+        <section class="build-stage">
+          <div class="stage-top"><span id="compatibilityBadge" class="status-badge">Select a firearm</span><span id="buildWeight">Estimated weight: —</span></div>
+          <div id="visualStage" class="visual-stage"></div>
+          <div class="build-summary">
+            <div><span>Build total</span><strong id="buildTotal">$0</strong></div>
+            <button class="primary-btn" id="buildQuoteButton">Request GAC Quote</button>
+          </div>
+        </section>
+        <aside class="parts-panel">
+          <div class="parts-panel-head"><div><p class="eyebrow">COMPATIBLE PARTS</p><h2 id="partsTitle">Select a category</h2></div></div>
+          <div id="partsList" class="parts-list"></div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="saved" class="view">
+      <div class="page-head"><div><p class="eyebrow">YOUR GARAGE</p><h1>Saved builds</h1><p>Builds are stored on this device for the prototype.</p></div></div>
+      <div id="savedBuilds" class="saved-grid"></div>
     </section>
   </main>
 
-  <footer class="site-footer">
-    <div class="shell footer-grid">
-      <div class="footer-contact"><h2>Contact</h2><a href="mailto:info@gacfirearms.com">info@gacfirearms.com</a><a href="mailto:sales@gacfirearms.com">sales@gacfirearms.com</a><a href="mailto:dealer@gacfirearms.com">dealer@gacfirearms.com</a></div>
-      <img src="assets/gac-logo-banner.png" alt="Gassett Arms Company" />
-      <div class="footer-legal"><p class="gold">Your vision. Our craft.</p><p>© <span id="year"></span> Gassett Arms Company. All rights reserved.</p><p>Federal firearms licensing pending. No regulated sales or services are currently available.</p></div>
-    </div>
-  </footer>
-  <script src="script.js"></script>
+  <nav class="mobile-nav" aria-label="Mobile navigation">
+    <button data-view="home">Home</button><button data-view="discover">Discover</button><button data-view="builder">Build</button><button data-view="saved">Saved</button>
+  </nav>
+
+  <dialog id="quoteDialog">
+    <form method="dialog" class="dialog-card">
+      <button class="dialog-close" value="cancel" aria-label="Close">×</button>
+      <p class="eyebrow">GAC QUOTE REQUEST</p><h2>Send this build to GAC</h2>
+      <p>This prototype prepares a build summary. A production version would securely send it to Gassett Arms Company.</p>
+      <label>Name<input id="quoteName" placeholder="Your name" /></label>
+      <label>Email<input id="quoteEmail" type="email" placeholder="you@example.com" /></label>
+      <label>Notes<textarea id="quoteNotes" placeholder="Tell us what you want from this build..."></textarea></label>
+      <button id="prepareQuote" class="primary-btn" value="cancel">Prepare Quote Summary</button>
+      <pre id="quoteOutput"></pre>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
 </body>
 </html>
