@@ -17,11 +17,11 @@ export function memberService(client, origin) {
     async requirements() { return unwrap(await client.from('gac_requirements').select('*').single()); },
     async signUp({email,password,confirmPassword,profile,requirements}) {
       if (typeof password !== 'string' || password.length<12 || password!==confirmPassword) throw new Error('Use matching passwords of at least 12 characters');
-      if (!profile.age_confirmed || !profile.law_agreed || !profile.accuracy_confirmed) throw new Error('Complete all required membership checks');
+      if (!profile.age_confirmed || !profile.law_agreed || !profile.accuracy_confirmed || !profile.recognition_acknowledged) throw new Error('Complete all required membership checks');
       // Password goes directly to Supabase Auth. Never copied into metadata, profiles, or local storage.
       return unwrap(await client.auth.signUp({email,password,options:{emailRedirectTo:authRedirect,data:{
         callsign:profile.callsign.trim().toUpperCase(),full_name:profile.full_name.trim(),phone:profile.phone.replace(/[() .-]/g,''),
-        age_confirmed:true,law_agreed:true,accuracy_confirmed:true,
+        age_confirmed:true,law_agreed:true,accuracy_confirmed:true,recognition_acknowledged:true,
         minimum_age:requirements.minimum_age,requirements_version:requirements.version
       }}}));
     },
