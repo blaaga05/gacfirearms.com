@@ -50,7 +50,7 @@ export function memberService(client, origin) {
     async wheelEntries(collectionId) { await user();return unwrap(await client.rpc('gac_wheel_entries',{p_collection_id:collectionId})); },
     async recognitionResult(collectionId) { await user();return unwrap(await client.rpc('gac_recognition_result',{p_collection_id:collectionId})); },
     async ownerMembers() { await user();if (!unwrap(await client.rpc('gac_is_owner'))) throw new Error('Owner access required');return unwrap(await client.from('gac_profiles').select('*').order('created_at',{ascending:false})); },
-    async ownerRecognitions() { await user();if (!unwrap(await client.rpc('gac_is_owner'))) throw new Error('Owner access required');return unwrap(await client.from('gac_recognitions').select('*,gac_profiles!gac_recognitions_member_id_fkey(callsign,full_name,contact_email,phone)').order('selected_at',{ascending:false})); },
+    async ownerRecognitions() { await user();if (!unwrap(await client.rpc('gac_is_owner'))) throw new Error('Owner access required');return unwrap(await client.from('gac_recognitions').select('*,gac_profiles!gac_recognitions_member_id_fkey(callsign,full_name,contact_email,phone),gac_collections(callsign,is_test)').order('selected_at',{ascending:false})); },
     async setMemberStatus(memberId,status) { await user();return unwrap(await client.rpc('gac_set_member_status',{p_user_id:memberId,p_status:status})); }
   };
 }
