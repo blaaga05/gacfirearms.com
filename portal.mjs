@@ -66,6 +66,8 @@ export function mountPortal({client,api,status,action,refresh}){
  const copyDefaults={},copyCounts={account:0,members:0,admin:0},dynamicIds=new Set(['status','identity','currentTitle','collectionSummary','selectionSummary','selectionTotal','wheelTitle','liveState','liveTimer','recognitionTime','liveResult','entryCount','ownerGroupSummary']);
  for(const x of document.querySelectorAll('main h1,main h2,main h3,main p,main label,main button')){if(dynamicIds.has(x.id)||x.closest('#copyFields,#members,#memberEditors,#recognitions')||x.hasAttribute('data-copy')||![...x.childNodes].every(n=>n.nodeType===3)||!x.textContent.trim())continue;const prefix=x.closest('#admin')?'admin':x.closest('#member')?'members':'account';const key=prefix+'-'+(++copyCounts[prefix]);x.dataset.copy=key;copyDefaults[key]=x.textContent;}
  function applyCopy(rows){for(const row of rows)for(const x of document.querySelectorAll('[data-copy]'))if(x.dataset.copy===row.copy_key)x.textContent=row.text_value}
+ // Preserve saved copy keys while removing the obsolete My logos navigation.
+ nav.querySelector('button[data-panel="mine"]').remove();
  // These new controls follow the existing copy-key scan so saved text keys stay stable.
  addPanel('awards','My recognition','<div class="card"><h2>My GAC recognition</h2><p>Your recognized callsign artwork stays here when a group is removed. Download your callsign artwork and the separate GAC phone wallpaper saved with your recognition.</p><div id="awardCards" class="grid"></div></div>');
  const heading=el('div','');heading.className='wheel-heading';$('wheelTitle').before(heading);heading.append(panels.live.querySelector('.kicker'),$('wheelTitle'));
