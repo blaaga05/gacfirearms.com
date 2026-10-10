@@ -16,7 +16,7 @@ setTimeout(window.gacAccountFallback,20000);
 <script type="module">
 try{
 
-const {createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm');
+const {createClient}=await import('./assets/supabase-client-2.57.4.mjs');
 const {memberService}=await import('./member-service.mjs?v=20261010-ffl');
 const {mountPortal}=await import('./portal.mjs?v=20261010-login-retry');
 const recoveryLink=new URLSearchParams(location.hash.slice(1)).get('type')==='recovery';
@@ -56,5 +56,5 @@ client.from('gac_site_text').select('copy_key,text_value').then(({data,error})=>
 $('guest').hidden=false;window.gacAccountReady=true;
 
 try{requirements=await api.requirements();$('ageText').textContent='I confirm I am at least '+requirements.minimum_age+' years old.';$('lawText').textContent=requirements.law_statement;$('recognitionAckText').textContent=requirements.recognition_statement;signupValid();await refresh()}catch(e){$('guest').hidden=false;status('Unable to connect to the account service. Please reload and try again. '+e.message)}
-}catch(e){window.gacAccountReady=false;window.gacAccountFallback();}
+}catch(e){window.gacAccountReady=false;window.gacAccountFallback();document.getElementById('status').textContent='Sign-in could not load: '+(e.message||'Connection interrupted')+'. Use Reload account page to retry.';}
 </script></html>
