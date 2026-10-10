@@ -1,4 +1,4 @@
-import {mountMessages} from './messages.mjs?v=20261010-private-messages';
+import {mountMessages} from './messages.mjs?v=20261010-owner-inbox';
 export function mountPortal({client,api,status,action,refresh}){
  const $=id=>document.getElementById(id),el=(tag,text)=>{const x=document.createElement(tag);x.textContent=text;return x},read=async q=>{const {data,error}=await q;if(error)throw error;return data};
  let owner=false,profile=null,collections=[],archivedCollections=[],active=null,entries=[],result=null,selected=new Set(),panel='collection',ownerPanel='collections',polling=false,lastPoll=0,lastAwardPoll=0,awardSignature='',awardLoading=false,artUrl='',artPath=null,artExpires=0,serverOffset=0;
