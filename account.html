@@ -18,6 +18,7 @@ try{
 
 const {createClient}=await import('./assets/supabase-client-2.57.4.mjs');
 const {memberService}=await import('./member-service.mjs?v=20261011-signup-validation');
+const {signupFeedback}=await import('./signup-feedback.mjs?v=20261011-guidance');
 const {mountPortal}=await import('./portal.mjs?v=20261011-multi-spin');
 const recoveryLink=new URLSearchParams(location.hash.slice(1)).get('type')==='recovery';
 const $=id=>document.getElementById(id),client=createClient('https://yuuagwxqhxiiybwjhome.supabase.co','sb_publishable_iYZBPKMeGQlAnst_uXBsRA_V0UL4z8L',{global:{fetch:async(input,options={})=>{const controller=new AbortController();const abort=()=>controller.abort();options.signal?.addEventListener('abort',abort,{once:true});const timer=setTimeout(abort,15000);try{return await fetch(input,{...options,signal:controller.signal})}finally{clearTimeout(timer);options.signal?.removeEventListener('abort',abort)}}}}),api=memberService(client,location.origin);
@@ -27,7 +28,14 @@ let requirements,busy=false,recovery=recoveryLink,refreshing=false;
 const status=text=>{$('status').textContent=text};
 const node=(tag,text)=>{const el=document.createElement(tag);el.textContent=text;return el};
 const phone=value=>value.replace(/[() .-]/g,'');
-function signupValid(){const c=$('callsign').value.trim();const invalid=c!==''&&!/^[A-Za-z0-9_-]{3,24}$/.test(c);const message=invalid?'Use 3–24 letters, numbers, underscores or hyphens. No spaces—for example, NILLA_WAFER.':'';$('callsign').setCustomValidity(message);const hint=$('callsignFormat');if(hint)hint.textContent=message;const p=phone($('phone').value);$('create').disabled=busy||!requirements||!$('signup').checkValidity()||!/^\+?1?[0-9]{10}$/.test(p)||$('password').value!==$('confirm').value;}
+function signupValid(){
+const values=Object.fromEntries(['name','callsign','email','phone','password','confirm'].map(id=>[id,$(id).value]));for(const id of ['age','law','accuracy','recognitionAck'])values[id]=$(id).checked;
+const feedback=signupFeedback(values,{requirementsLoaded:!!requirements,busy,minimumAge:requirements?.minimum_age||21});
+$('callsign').setCustomValidity(feedback.errors.callsign||'');
+for(const id of ['name','callsign','email','phone','password','confirm']){const hint=$(id+'Error');if(hint)hint.textContent=values[id]?feedback.errors[id]||'':'';$(id).setAttribute('aria-invalid',String(!!values[id]&&!!feedback.errors[id]));}
+if($('signupChecklist')){$('signupChecklistTitle').textContent=feedback.title;$('signupMissing').replaceChildren(...feedback.missing.map(text=>node('li',text)));$('signupMissing').hidden=busy||!feedback.missing.length;}
+$('create').disabled=!feedback.ready||!$('signup').checkValidity();
+}
 function tab(id){for(const n of ['login','signup','recover'])$(n).hidden=n!==id;status('Use your GAC member email and password.');}
 async function action(fn){if(busy)return;busy=true;document.querySelectorAll('button').forEach(b=>b.disabled=true);try{await fn()}catch(e){status(e.message||'Unable to complete this request. Please try again.')}finally{busy=false;document.querySelectorAll('button').forEach(b=>b.disabled=false);signupValid();portal.enforce()}}
 async function refresh(){if(refreshing)return;refreshing=true;try{
@@ -50,7 +58,12 @@ $('profile').onsubmit=e=>{e.preventDefault();action(async()=>{const p=phone($('p
 $('newPassword').onsubmit=e=>{e.preventDefault();action(async()=>{await api.updatePassword($('newPass').value,$('newConfirm').value);$('newPass').value='';$('newConfirm').value='';recovery=false;status('Password updated. Use your new password the next time you sign in.');})};
 $('logout').onclick=()=>action(async()=>{await api.signOut();$('newPassword').hidden=true;await refresh()});$('logoutAll').onclick=()=>action(async()=>{await api.signOutEverywhere();$('newPassword').hidden=true;await refresh()});$('refresh').onclick=()=>action(refresh);
 const portal=mountPortal({client,api,status,action,refresh});Object.assign(copyDefaults,portal.copyDefaults);
-const callsignHint=document.createElement("span");callsignHint.id="callsignFormat";callsignHint.className="small";callsignHint.style.color="#ffb3a7";callsignHint.setAttribute("role","status");$("callsign").after(callsignHint);$("callsign").setAttribute("aria-describedby","callsignFormat");
+// Add guidance after the editable-copy scan so existing saved copy keys stay stable.
+for(const [id,text] of [['callsign','3–24 letters, numbers, underscores or hyphens. No spaces. Example: NILLA_WAFER.'],['password','At least 12 characters. A memorable phrase works well.'],['confirm','Enter the exact same password again.'],['phone','Use a 10-digit US phone number; +1 is optional.']]){const hint=node('span',text);hint.id=id+'Help';hint.className='small';hint.style.display='block';$(id).after(hint);}
+for(const id of ['name','callsign','email','phone','password','confirm']){const hint=node('span','');hint.id=id+'Error';hint.className='small';hint.style.cssText='display:block;color:#ffb3a7';$(id).parentElement.append(hint);$(id).setAttribute('aria-describedby',($(id+'Help')?id+'Help ':'')+hint.id);}
+const checklist=node('div','');checklist.id='signupChecklist';checklist.className='record';checklist.style.marginBottom='16px';const title=node('strong','');title.id='signupChecklistTitle';const missing=node('ul','');missing.id='signupMissing';missing.style.cssText='padding-left:22px;margin:10px 0;line-height:1.6';checklist.append(title,missing);$('create').before(checklist);signupValid();
+$('signup').addEventListener('change',signupValid);
+
 client.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY')recovery=true;if(event==='SIGNED_OUT'){recovery=false;$('newPass').value='';$('newConfirm').value='';$('newPassword').hidden=true}if(['PASSWORD_RECOVERY','SIGNED_IN','SIGNED_OUT','TOKEN_REFRESHED'].includes(event))setTimeout(refresh,0)});
 // Optional website copy must never block sign-in.
 client.from('gac_site_text').select('copy_key,text_value').then(({data,error})=>{if(!error)portal.applyCopy(data)}).catch(()=>{});
