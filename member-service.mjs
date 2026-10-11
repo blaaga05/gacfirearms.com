@@ -10,7 +10,7 @@ export function memberService(client, origin) {
   const unwrap = ({data,error}) => { if (error) throw error; return data; };
   function validCallsign(value) {
     const callsign=typeof value==='string'?value.trim().toUpperCase():'';
-    if (!/^[A-Z0-9_-]{3,24}$/.test(callsign)) throw new Error('Callsigns must use 3–24 letters, numbers, underscores or hyphens, with no spaces. Try NILLA_WAFER.');
+    if (!/^[A-Z0-9_-]{3,24}$/.test(callsign)) throw new Error('Callsigns must use 3–24 letters, numbers, underscores or hyphens, with no spaces.');
     return callsign;
   }
   async function user() {
