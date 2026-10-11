@@ -8,6 +8,11 @@ export function memberService(client, origin) {
   const authRedirect = new URL('/account.html', parsed).href;
   const recoveryRedirect = new URL('/account.html', parsed).href;
   const unwrap = ({data,error}) => { if (error) throw error; return data; };
+  function validCallsign(value) {
+    const callsign=typeof value==='string'?value.trim().toUpperCase():'';
+    if (!/^[A-Z0-9_-]{3,24}$/.test(callsign)) throw new Error('Callsigns must use 3–24 letters, numbers, underscores or hyphens, with no spaces. Try NILLA_WAFER.');
+    return callsign;
+  }
   async function user() {
     const {user} = unwrap(await client.auth.getUser());
     if (!user) throw new Error('Sign in required');
@@ -18,9 +23,10 @@ export function memberService(client, origin) {
     async signUp({email,password,confirmPassword,profile,requirements}) {
       if (typeof password !== 'string' || password.length<12 || password!==confirmPassword) throw new Error('Use matching passwords of at least 12 characters');
       if (!profile.age_confirmed || !profile.law_agreed || !profile.accuracy_confirmed || !profile.recognition_acknowledged) throw new Error('Complete all required membership checks');
+      const callsign=validCallsign(profile.callsign);
       // Password goes directly to Supabase Auth. Never copied into metadata, profiles, or local storage.
       return unwrap(await client.auth.signUp({email,password,options:{emailRedirectTo:authRedirect,data:{
-        callsign:profile.callsign.trim().toUpperCase(),full_name:profile.full_name.trim(),phone:profile.phone.replace(/[() .-]/g,''),
+        callsign,full_name:profile.full_name.trim(),phone:profile.phone.replace(/[() .-]/g,''),
         age_confirmed:true,law_agreed:true,accuracy_confirmed:true,recognition_acknowledged:true,
         minimum_age:requirements.minimum_age,requirements_version:requirements.version
       }}}));
@@ -43,6 +49,7 @@ export function memberService(client, origin) {
       const u=await user();
       const allowed=['callsign','full_name','contact_email','phone','preferred_ffl_name','preferred_ffl_address'];
       const clean=Object.fromEntries(allowed.filter(k=>Object.hasOwn(values,k)).map(k=>[k,values[k]]));
+      if (Object.hasOwn(clean,'callsign')) clean.callsign=validCallsign(clean.callsign);
       return unwrap(await client.from('gac_profiles').update(clean).eq('user_id',u.id).select('*').single());
     },
     async changeLoginEmail(email) { await user();return unwrap(await client.auth.updateUser({email},{emailRedirectTo:authRedirect})); },
