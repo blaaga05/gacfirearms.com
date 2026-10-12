@@ -1,3 +1,7 @@
+export function personalRecognitionReady(collection,entries,rounds,now){
+ const expected=Math.min(Number(collection?.spin_count||1),entries.length),latest=rounds.at(-1);
+ return collection?.state==='recognized'&&expected>0&&rounds.length>=expected&&!!latest&&now>=Date.parse(latest.selected_at)+Number(collection.wheel_settings?.duration||14)*1000+10000;
+}
 /** Shared display only. Results and reveal times come from the server. */
 export function sharedRecognition(collection,entries,rounds,now){
  if(!collection||!rounds.length)return null;
