@@ -4,9 +4,9 @@ export function sharedRecognition(collection,entries,rounds,now){
  const duration=Number(collection.wheel_settings?.duration||14)*1000;
  const latest=rounds.at(-1),reveal=Date.parse(latest.selected_at)+duration;
  const hasNext=rounds.length<Math.min(Number(collection.spin_count||1),entries.length);
- const closeAt=Math.min(reveal+4000,hasNext?reveal+Number(collection.spin_pause_seconds||15)*1000:Infinity);
+ const closeAt=Math.min(reveal+10000,hasNext?reveal+Number(collection.spin_pause_seconds||15)*1000:Infinity);
  if(now<reveal||now>=closeAt)return null;
- return {key:collection.id+'|'+latest.spin_number+'|'+latest.selected_at+'|'+latest.edition_number,callsign:latest.callsign,group:collection.callsign,number:latest.edition_number,spin:latest.spin_number||1,total:Math.min(Number(collection.spin_count||1),entries.length),test:!!collection.is_test,seconds:Math.ceil((closeAt-now)/1000),fraction:(closeAt-now)/4000};
+ return {key:collection.id+'|'+latest.spin_number+'|'+latest.selected_at+'|'+latest.edition_number,callsign:latest.callsign,group:collection.callsign,number:latest.edition_number,spin:latest.spin_number||1,total:Math.min(Number(collection.spin_count||1),entries.length),test:!!collection.is_test,seconds:Math.ceil((closeAt-now)/1000),fraction:(closeAt-now)/Math.min(10000,closeAt-reveal)};
 }
 export function mountSharedRecognition(){
  const el=(tag,text)=>{const e=document.createElement(tag);e.textContent=text;return e};
