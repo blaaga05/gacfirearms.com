@@ -1,4 +1,4 @@
-import {mountSharedRecognition,personalRecognitionReady} from './shared-recognition.mjs?v=20261012-final-spin-gate';
+import {mountSharedRecognition,personalRecognitionReady} from './shared-recognition.mjs?v=20261014-simple-popup';
 import {mountNumberReservations,collectionIsOpen} from './number-reservations.mjs?v=20261012-auto-release';
 import {wheelSequence} from './wheel-sequence.mjs?v=20261011-multi-spin';
 import {mountMessages} from './messages.mjs?v=20261010-owner-inbox';
