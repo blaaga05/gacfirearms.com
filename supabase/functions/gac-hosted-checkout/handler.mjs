@@ -1,7 +1,7 @@
 import {authorize,backend,liveWebhookReady} from '../_shared/authorizenet.mjs';
 const ORIGIN='https://gacfirearms.com';
 export function hostedSettings(id){const setting=(settingName,value)=>({settingName,settingValue:JSON.stringify(value)});return {setting:[
- setting('hostedPaymentReturnOptions',{showReceipt:true,url:ORIGIN+'/account.html?checkout='+id+'&payment=return',urlText:'Return to GAC',cancelUrl:ORIGIN+'/account.html?checkout='+id+'&payment=cancel',cancelUrlText:'Return to GAC'}),
+ setting('hostedPaymentReturnOptions',{showReceipt:true,url:ORIGIN+'/account.html',urlText:'Return to GAC',cancelUrl:ORIGIN+'/account.html',cancelUrlText:'Return to GAC'}),
  setting('hostedPaymentButtonOptions',{text:'Pay'}),setting('hostedPaymentStyleOptions',{bgColor:'#355540'}),
  setting('hostedPaymentPaymentOptions',{cardCodeRequired:true,showCreditCard:true,showBankAccount:false}),
  setting('hostedPaymentSecurityOptions',{captcha:true}),setting('hostedPaymentShippingAddressOptions',{show:false,required:false}),
