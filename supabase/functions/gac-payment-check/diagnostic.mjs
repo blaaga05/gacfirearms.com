@@ -16,7 +16,8 @@ export async function diagnoseHosted({env,fetcher=fetch}){
  const setting=(settingName,value)=>({settingName,settingValue:JSON.stringify(value)});
  const minimal={setting:[setting('hostedPaymentReturnOptions',{showReceipt:true,url:'https://gacfirearms.com/account.html',cancelUrl:'https://gacfirearms.com/account.html'}),setting('hostedPaymentCustomerOptions',{showEmail:false,requiredEmail:false,addPaymentProfile:false}),setting('hostedPaymentPaymentOptions',{showCreditCard:true,showBankAccount:false,cardCodeRequired:true})]};
  const full=hostedSettings(crypto.randomUUID());
- const variants=[['Minimal form',minimal,'base'],['Minimal form with invoice',minimal,'invoice'],['Updated checkout request',full,'invoice']];
+ const labels={hostedPaymentReturnOptions:'Return links',hostedPaymentButtonOptions:'Pay button text',hostedPaymentStyleOptions:'Custom color',hostedPaymentPaymentOptions:'Card payment options',hostedPaymentSecurityOptions:'CAPTCHA',hostedPaymentShippingAddressOptions:'Shipping settings',hostedPaymentBillingAddressOptions:'Required billing address',hostedPaymentCustomerOptions:'Customer settings',hostedPaymentOrderOptions:'Order panel'};
+ const variants=[['Minimal form with invoice',minimal,'invoice'],['Full checkout request',full,'invoice'],...full.setting.map(option=>[labels[option.settingName]||option.settingName,{setting:[...minimal.setting.filter(x=>x.settingName!==option.settingName),option]},'invoice'])];
  const results=await Promise.all(variants.map(async([name,options,mode])=>{
   try{
    // Request and load a $1 form without entering any payment information. No
