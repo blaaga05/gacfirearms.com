@@ -1,4 +1,4 @@
-import {mountMerchAdmin} from './merch-admin.mjs?v=20261016-merch';
+import {mountMerchAdmin} from './merch-admin.mjs?v=20261016-accessories';
 import {mountHostedCheckout} from './hosted-checkout.mjs?v=20261016-sandbox-gate';
 import {mountManualAssignment} from './manual-assignment.mjs?v=20261015-manual-assign';
 import {mountAdminAnnouncements} from './admin-announcements.mjs?v=20261015-announcements';
