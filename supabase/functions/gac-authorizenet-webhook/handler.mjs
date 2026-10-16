@@ -1,3 +1,4 @@
+import {processNotification} from '../_shared/authorizenet.mjs';
 const hexBytes=s=>Uint8Array.from(s.match(/../g)||[],x=>parseInt(x,16));
 export async function validSignature(raw,header,secret){
  if(!/^[a-f\d]{128}$/i.test(secret||'')||!/^sha512=[a-f\d]{128}$/i.test(header||''))return false;
@@ -10,7 +11,7 @@ export async function validSignature(raw,header,secret){
  }
  return false;
 }
-export function createWebhookHandler({env,fetcher=fetch}){
+export function createWebhookHandler({env,fetcher=fetch,processor=processNotification}){
  return async req=>{
   const reply=(message,status)=>new Response(JSON.stringify({message}),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
   if(req.method!=='POST')return reply('POST required',405);
@@ -32,7 +33,8 @@ export function createWebhookHandler({env,fetcher=fetch}){
    // trust webhook amount/return URL as proof of a purchase. Crediting is separate.
    const stored=await fetcher(url+'/rest/v1/rpc/gac_receive_authorizenet_notification',{method:'POST',headers:{apikey:key,Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({p_notification:data.notificationId,p_webhook:data.webhookId,p_event:data.eventType,p_transaction:String(data.payload.id),p_event_at:eventAt?.toISOString()||null}),signal:AbortSignal.timeout(10000)});
    if(!stored.ok)return reply('Please retry notification',503);
-   return reply('Notification recorded',200);
+   await processor(env,data,fetcher);
+   return reply('Notification processed',200);
   }catch{return reply('Please retry notification',503)}
  };
 }
