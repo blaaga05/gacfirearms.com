@@ -29,7 +29,7 @@ export function createCheckoutHandler({env,fetcher=fetch}){return async req=>{
  if(!begin.ok){const e=await begin.json();return reply({error:typeof e.message==='string'?e.message:'Checkout could not start'},409)}
  const id=await begin.json(),i=await db('gac_hosted_checkout_token',{p_checkout:id,p_member:user.id});
  let token=i.token;
- if(!token){const data=await authorize(env,'getHostedPaymentPageRequest',{refId:i.invoice,transactionRequest:{transactionType:'authCaptureTransaction',amount:(i.amount_cents/100).toFixed(2),currencyCode:'USD',order:{invoiceNumber:i.invoice,description:'GAC numbered digital logo'}},hostedPaymentSettings:hostedSettings(id)},fetcher);token=data.token;if(typeof token!=='string'||token.length<10)throw Error('Hosted payment token unavailable');await db('gac_hosted_checkout_token',{p_checkout:id,p_member:user.id,p_token:token});}
+ if(!token){const data=await authorize(env,'getHostedPaymentPageRequest',{refId:i.invoice,transactionRequest:{transactionType:'authCaptureTransaction',amount:(i.amount_cents/100).toFixed(2),currencyCode:'USD',order:{invoiceNumber:i.invoice}},hostedPaymentSettings:hostedSettings(id)},fetcher);token=data.token;if(typeof token!=='string'||token.length<10)throw Error('Hosted payment token unavailable');await db('gac_hosted_checkout_token',{p_checkout:id,p_member:user.id,p_token:token});}
  return reply({checkout:id,token,url:'https://accept.authorize.net/payment/payment',expires_at:i.expires_at,amount_cents:i.amount_cents});
  }catch{return reply({error:'Secure checkout could not be prepared. Your existing holds have not been extended. Try again shortly.'},502)}
 };}
