@@ -1,49 +1,71 @@
-# Authorize.net checkout owner pilot — 2026-10-16
+# GAC Accept Hosted integration — INCOMPLETE, sandbox release gate
 
-Owner confirmed live API authentication and signed webhook ping. The synthetic ping (transaction245) was marked ignored after receipt verification. No real charge or permanent purchase was made by the assistant.
+Updated 2026-10-16. General member checkout remains disabled. New live owner checkout is paused by default in both UI and Edge Function. Existing live webhooks and manual reconciliation remain operational. Existing accounts, orders, logo snapshots, and recognition are unchanged.
 
-Functions:
-- gac-payment-check: owner-only credential authentication test, last signed notification timestamp.
-- gac-hosted-checkout: owner-only. Verifies caller against Auth and private owner RPC; verifies active webhook via live gateway REST API before requesting a payable token. Creates server-priced fixed-cart checkout snapshot. Hosted authCaptureTransaction in USD, no card/profile storage, card code and billing address required, captcha, external POST redirect. Saved token reused; original hold expiry unchanged. Minimum90seconds remaining.
-- gac-authorizenet-webhook: raw-body HMAC verification, durable deduplicated minimal inbox, authenticated getTransactionDetails, exact invoice/amount/status/type validation, atomic DB credit. Transient/reporting failures return503 and remain pending for gateway retries.
+## Confirmed current behavior
 
-Data:
-- Private checkouts store exact member/number/hold-token/price/acknowledgment snapshots and short-lived hosted form token. Public authenticated RPCs expose only own status. Owner pilot is enforced in SQL and Edge Function. No card fields are accepted by GAC frontend/backend.
-- Crediting: collection row lock + intent lock; exact original live holds, active membership, still-open live collection before recognition, approved capture status and server-fetched amount. Idempotent transaction/order credit. Price edits honor saved checkout amount.
-- Exceptions: expired/changed/released holds, closed collection, mismatched amount/status, duplicate second charge become owner payment reviews. No double assignment. Owner must verify/void/refund in Authorize.net as appropriate, then record resolution. Resolution button does not execute financial actions or assign numbers.
-- Owner Payment setup lists reviews and Retry saved payment notifications. Return URL does not prove payment. Own checkout status polls5sec and refreshes purchases after verified credit.
+- Full-page external form POST (target _self) to the official Authorize.net hosted page. No embedded iframe, card inputs, or saved payment methods in GAC.
+- Supabase Edge Functions hold credentials; frontend receives only the short-lived hosted token and own checkout ID.
+- Pending private checkout intent snapshots member, numbers, exact hold IDs, server price, acknowledgment, original deadline, and unique invoice. Server ignores frontend totals. The fulfilled order is inserted only after authenticated gateway verification.
+- Success and cancellation return to /account.html. Account-scoped sessionStorage tracks the intent. Returning never marks a purchase paid.
+- Raw-body HMAC SHA-512 verification precedes durable deduplicated notification storage. Authenticated getTransactionDetails supplies invoice, transaction status/type, amount and time. Atomic SQL checks the intent/holds and credits once. No raw webhook or gateway response containing card data is persisted or logged.
+- CAPTCHA, CVV and required billing controls retained. addPaymentProfile=false and no customer profile ID.
+- Expired/released/mismatched holds and duplicate charges enter private owner review. Review resolution does not issue a refund/void or assign numbers.
+- Owner retry processes up to ten durable pending notifications. Automatic scheduled recovery for completely missed notifications is not yet implemented.
 
-External next step:
-1 Set existing GAC Website webhook Active, Authcapture Created event.
-2 Refresh owner account. Use open live collection (not owner pretend-test group), choose number, acknowledge, Checkout LIVE owner pilot.
-3 Inspect hosted form; stop before Pay for first preview. User performs any actual low-value payment afterward.
+## Prior verification
 
-Verification:
-- 54 Node tests pass including server-priced token, active webhook gate, no payment-profile storage, signed notification rejection/tampering, gateway-derived amounts, failed reporting retry.
-- SQL rollback tests passed: nonowner pilot denial, amount mismatch, duplicate events/charges, snapshot pricing, consumed holds, expired/released holds, private account status and grants. No permanent fixture data.
-- Linkedom full portal mount/logout and owner handoff confirmation/cancel/private cleanup passed. No browser/live payment test yet.
+The owner reported a successful checkout. Payment-specific evidence remains private and is not included in this repository. This does not establish sandbox coverage or settlement/refund behavior.
 
-Remaining before broad member rollout:
-- Actual owner hosted-form preview, controlled live payment and receipt/wheel validation.
-- Confirm Authorize.net USD account and actual Payment Form required fields.
-- Full late-payment/void/refund/fraud lifecycle tests; current pilot routes exceptions to manual review rather than auto-refunding or changing existing recognition.
-- Scheduled reconciliation beyond gateway webhook retries (manual retry is present). Do not claim missed-notification automation exists.
-- PCI questionnaire against actual deployed checkout and all other acceptance channels. Do not attest to unverified controls. Supabase leaked-password protection remains disabled; existing advisor warnings for explicitly guarded definer RPCs/private RLS tables reviewed, not a full security audit.
+## Sandbox isolation configuration
 
-Secrets are owner-managed in Supabase. Never read/export/commit their values. Public member checkout stays disabled until separate rollout.
+Only one Supabase project is currently connected, the production project yuuagwxqhxiiybwjhome. An isolated test project/site and Authorize.net sandbox account are required before end-to-end sandbox testing. Do not copy real member data into testing.
 
-## Hosted blank-form debugging update
+In the isolated Supabase project, set these server-only secrets:
 
-Owner Chrome showed only Order Summary, then payment:24 SyntaxError and undefined g_errorPanelMessage. Extracted hosted error: technical issue processing request. No actual payment/card entry yet.
+- AUTHORIZENET_ENVIRONMENT=sandbox
+- AUTHORIZENET_SANDBOX_PROJECT_URL=<that project's exact SUPABASE_URL>
+- GAC_SITE_ORIGIN=<the isolated HTTPS test site's origin, no trailing slash>
+- AUTHORIZENET_SANDBOX_API_LOGIN_ID=<sandbox login>
+- AUTHORIZENET_SANDBOX_TRANSACTION_KEY=<sandbox transaction key>
+- AUTHORIZENET_SANDBOX_SIGNATURE_KEY=<sandbox signature key>
 
-Owner-only no-charge diagnostic added to Payment setup; Edge Function gac-payment-check action diagnose creates form tokens, posts each server-side to hosted URL, reports only safe error classifications. Never returns tokens, HTML, credentials, or card data. Latest diagnostic has baseline + full + each extra setting separately.
+Do not paste secrets into chat, commit them, or reuse production keys. The runtime never falls back from missing sandbox keys to production keys. Sandbox configuration rejects the known production database, a mismatching test project URL, and the live website origin.
 
-2026-10-16 01:55Z owner screenshot: baseline with invoice succeeds; full request fails; Return links variant alone fails; every other individual setting (CAPTCHA, required billing, color, button, payment options, shipping, customer, order) succeeds.
+Sandbox endpoints are fixed:
+- API https://apitest.authorize.net/xml/v1/request.api
+- Hosted form https://test.authorize.net/payment/payment
+- Webhooks management https://apitest.authorize.net/rest/v1/webhooks
 
-Fix deployed: return and cancel URLs are now plain https://gacfirearms.com/account.html without query string. Existing frontend sessionStorage retains account-scoped checkout ID; return URL never proves payment. Pending owner token cache cleared so next attempt mints corrected settings. Need owner browser preview to confirm actual form renders, then controlled real payment later.
+Deploy the same schema and functions to the isolated project with synthetic test members, logo assets and collections only. Point an isolated frontend at that project and enable its owner-only sandbox checkout control; the current production portal intentionally disables its live checkout button. Configure the sandbox webhook to the isolated project's gac-authorizenet-webhook URL. Keep the sandbox gateway in Live Mode (sandbox transactions still never charge real funds), not its transaction-disabling Test Mode.
 
-Other changes: order description omitted per user. Explicit currencyCode omitted from hosted request; invoice and fixed server amount retained, USD ledger assumes account currency—must confirm actual merchant currency before rollout. One earlier diagnostic put currency after order (schema sequence difference), so do NOT claim currency alone was proven root cause.
+Production reconciliation retains existing AUTHORIZENET_API_LOGIN_ID, AUTHORIZENET_TRANSACTION_KEY and AUTHORIZENET_SIGNATURE_KEY. Production is the compatibility default when AUTHORIZENET_ENVIRONMENT is absent; this preserves existing notification verification. New production tokens additionally require GAC_LIVE_CHECKOUT_ENABLED=true. Do not set that release flag until test evidence and release review are complete. The independent private-owner gates remain enforced in both Edge Function and SQL, so that flag alone does not enable ordinary members.
 
-Auto-review rejected attempt to replace full settings with minimal because it removed CAPTCHA/required billing. Safer accepted change retained CAPTCHA=true and billing required=true; current live settings include all protections and only plain return links. No pending approval needed. Do not bypass prior rejection.
+## Verification matrix
 
-Current tests:56 Node tests pass, full portal mount/logout and hosted handoff smoke pass; no live charge test. Owner-only public checkout gate remains. PCI questionnaire still pending.
+| Scenario | Current evidence | Release requirement |
+| --- | --- | --- |
+| Hosted redirect and live purchase | Actual owner browser/payment + DB verified | Repeat in sandbox |
+| Server price, secrets isolation, no profiles | Automated unit tests | Sandbox inspection |
+| Missing/forged/tampered signatures | Automated unit tests | Sandbox endpoint replay |
+| Duplicate notifications and second charge | SQL rollback tests | Sandbox repeated notification and distinct second charge |
+| Changed/expired holds; amount mismatch | SQL rollback tests | Sandbox end-to-end late-payment handling |
+| Declined/held gateway response | Mocked gateway unit tests | Actual sandbox decline/fraud rules |
+| Cancel/back navigation; token expiry | Return is not used as proof; no end-to-end evidence | Browser sandbox tests |
+| Browser closes before return | Server webhook independent of return | Sandbox browser-close test |
+| Reporting/database failure and delayed webhook | Mock retry + durable inbox | Actual recovery test |
+| Completely missed webhook | Manual durable-inbox retry cannot recover an event never received | Implement scheduled reporting reconciliation |
+| Void, full/partial refund, fraud lifecycle | Not complete; manual review only | Implement and test explicit lifecycle accounting without silently reissuing numbers |
+| Simultaneous buyers / double-click | SQL locking/idempotent snapshots; unit tests | Concurrent sandbox exercise |
+| Member privacy and owner permissions | SQL rollback tests | Nonowner end-to-end sandbox checks |
+| Mobile and desktop | Owner Chrome live form confirmed | Sandbox devices and navigation |
+
+62 automated Node tests pass after environment changes. They are mocked/unit tests, not a completed sandbox certification. SQL rollback coverage was previously executed against production without retained fixtures. No new schema or member data changes in this update.
+
+## Remaining release decisions
+
+Confirm merchant account USD currency; the ledger is USD and the hosted request relies on the merchant's currency. Confirm gateway required Form Fields. Implement and test reporting recovery and refund/void/fraud lifecycle. Complete PCI SAQ A based on actual controls and processor-confirmed channel scope; separately cover mobile acceptance. Do not attest to script monitoring not implemented. Hosted redirect eligibility is not an automatic compliance certification.
+
+Blank hosted-page issue was isolated to return settings containing query strings; plain return URLs fixed it. Preserve plain URLs and browser-scoped checkout tracking. Do not remove CAPTCHA or required billing to troubleshoot.
+
+References: https://developer.authorize.net/api/reference/features/accept-hosted.html and https://developer.authorize.net/hello_world/testing_guide.html

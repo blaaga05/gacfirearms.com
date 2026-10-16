@@ -1,6 +1,8 @@
+import {gatewayConfig} from '../_shared/authorizenet.mjs';
 const ORIGIN='https://gacfirearms.com';
 export function createHandler({env,fetcher=fetch}){
  return async req=>{
+  const ORIGIN=env('GAC_SITE_ORIGIN')||'https://gacfirearms.com';
   const headers={'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':ORIGIN,'Access-Control-Allow-Headers':'authorization, apikey, content-type, x-client-info','Access-Control-Allow-Methods':'POST, OPTIONS','Vary':'Origin'};
   const reply=(body,status=200)=>new Response(JSON.stringify(body),{status,headers});
   if(req.headers.get('origin')&&req.headers.get('origin')!==ORIGIN)return reply({error:'Origin not allowed'},403);
@@ -17,23 +19,23 @@ export function createHandler({env,fetcher=fetch}){
    const identity=await user.json();if(!identity.id)return reply({error:'Sign in again.'},401);
    const owner=await call('/rest/v1/rpc/gac_is_owner',{method:'POST',body:'{}'});
    if(!owner.ok||await owner.json()!==true)return reply({error:'Owner access required.'},403);
-   const login=env('AUTHORIZENET_API_LOGIN_ID')?.trim(),transaction=env('AUTHORIZENET_TRANSACTION_KEY')?.trim(),signature=env('AUTHORIZENET_SIGNATURE_KEY')?.trim();
+   const gateway=gatewayConfig(env),login=gateway.login,transaction=gateway.key,signature=gateway.signature;
    const missing=[];if(!login)missing.push('AUTHORIZENET_API_LOGIN_ID');if(!transaction)missing.push('AUTHORIZENET_TRANSACTION_KEY');if(!signature)missing.push('AUTHORIZENET_SIGNATURE_KEY');
    if(missing.length)return reply({ok:false,message:'Missing Supabase secrets: '+missing.join(', ')});
    if(!/^[a-fA-F0-9]{128}$/.test(signature))return reply({ok:false,message:'The Signature Key must contain 128 hexadecimal characters. Check its saved value in Supabase.'});
    const requestText=await req.text();if(requestText.length>1000)return reply({error:'Request too large'},413);
    let body={};if(requestText){try{body=JSON.parse(requestText)}catch{return reply({error:'Invalid request'},400)}}
    if(body.action==='diagnose'){const {diagnoseHosted}=await import('./diagnostic.mjs');return reply(await diagnoseHosted({env,fetcher}));}
-   const response=await fetcher('https://api.authorize.net/xml/v1/request.api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({authenticateTestRequest:{merchantAuthentication:{name:login,transactionKey:transaction}}}),signal:AbortSignal.timeout(15000)});
+   const response=await fetcher(gateway.api,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({authenticateTestRequest:{merchantAuthentication:{name:login,transactionKey:transaction}}}),signal:AbortSignal.timeout(15000)});
    if(!response.ok)return reply({error:'Authorize.net could not be reached. Try again shortly.'},502);
    const data=JSON.parse((await response.text()).replace(/^\uFEFF/,''));
    if(data.messages?.resultCode!=='Ok'){
     const code=data.messages?.message?.[0]?.code;
-    return reply({ok:false,message:code==='E00007'?'Authorize.net rejected the API Login ID or Transaction Key. Check that both are from your live account.':'Authorize.net did not validate the credentials. Review your gateway settings and try again.'});
+    return reply({ok:false,message:code==='E00007'?'Authorize.net rejected the API Login ID or Transaction Key. Check that both are from the configured gateway environment.':'Authorize.net did not validate the credentials. Review your gateway settings and try again.'});
    }
    const notificationStatus=await call('/rest/v1/rpc/gac_owner_payment_notification_status',{method:'POST',body:'{}'});
    const lastNotification=notificationStatus.ok?await notificationStatus.json():null;
-   return reply({ok:true,lastNotification,message:(lastNotification?'Signed payment notification received '+lastNotification+'. ':'')+'Live Authorize.net credentials verified. Signature Key is saved in the expected format. Member crediting still requires transaction verification. No charge was made. Member checkout remains disabled.'});
+   return reply({ok:true,lastNotification,message:(lastNotification?'Signed payment notification received '+lastNotification+'. ':'')+gateway.mode+' Authorize.net credentials verified. Signature Key is saved in the expected format. Member crediting still requires transaction verification. No charge was made. Member checkout remains disabled.'});
   }catch{return reply({error:'Payment connection check could not finish. Try again shortly.'},502)}
  };
 }

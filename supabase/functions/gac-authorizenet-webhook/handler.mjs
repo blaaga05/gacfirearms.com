@@ -1,4 +1,4 @@
-import {processNotification} from '../_shared/authorizenet.mjs';
+import {processNotification,gatewayConfig} from '../_shared/authorizenet.mjs';
 const hexBytes=s=>Uint8Array.from(s.match(/../g)||[],x=>parseInt(x,16));
 export async function validSignature(raw,header,secret){
  if(!/^[a-f\d]{128}$/i.test(secret||'')||!/^sha512=[a-f\d]{128}$/i.test(header||''))return false;
@@ -20,7 +20,7 @@ export function createWebhookHandler({env,fetcher=fetch,processor=processNotific
    const reader=req.body?.getReader();if(!reader)return reply('Body required',400);const chunks=[];let length=0;
    while(true){const {value,done}=await reader.read();if(done)break;length+=value.length;if(length>32768){await reader.cancel();return reply('Payload too large',413)}chunks.push(value)}
    const raw=new Uint8Array(length);let offset=0;for(const x of chunks){raw.set(x,offset);offset+=x.length}
-   const signature=env('AUTHORIZENET_SIGNATURE_KEY')?.trim();if(!signature)return reply('Not configured',503);
+   const signature=gatewayConfig(env).signature;if(!signature)return reply('Not configured',503);
    if(!await validSignature(raw,req.headers.get('x-anet-signature'),signature))return reply('Invalid signature',401);
    let data;try{data=JSON.parse(new TextDecoder().decode(raw))}catch{return reply('Invalid JSON',400)}
    const uuid=/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
