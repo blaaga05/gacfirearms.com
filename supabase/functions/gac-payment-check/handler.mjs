@@ -21,6 +21,9 @@ export function createHandler({env,fetcher=fetch}){
    const missing=[];if(!login)missing.push('AUTHORIZENET_API_LOGIN_ID');if(!transaction)missing.push('AUTHORIZENET_TRANSACTION_KEY');if(!signature)missing.push('AUTHORIZENET_SIGNATURE_KEY');
    if(missing.length)return reply({ok:false,message:'Missing Supabase secrets: '+missing.join(', ')});
    if(!/^[a-fA-F0-9]{128}$/.test(signature))return reply({ok:false,message:'The Signature Key must contain 128 hexadecimal characters. Check its saved value in Supabase.'});
+   const requestText=await req.text();if(requestText.length>1000)return reply({error:'Request too large'},413);
+   let body={};if(requestText){try{body=JSON.parse(requestText)}catch{return reply({error:'Invalid request'},400)}}
+   if(body.action==='diagnose'){const {diagnoseHosted}=await import('./diagnostic.mjs');return reply(await diagnoseHosted({env,fetcher}));}
    const response=await fetcher('https://api.authorize.net/xml/v1/request.api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({authenticateTestRequest:{merchantAuthentication:{name:login,transactionKey:transaction}}}),signal:AbortSignal.timeout(15000)});
    if(!response.ok)return reply({error:'Authorize.net could not be reached. Try again shortly.'},502);
    const data=JSON.parse((await response.text()).replace(/^\uFEFF/,''));
