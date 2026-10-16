@@ -1,0 +1,7 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {safeCart,addItem,subtotal,parsePrice} from '../web/merch-cart.mjs';
+const product={id:'shirt',published:true,price_cents:3000,sizes:['M','L']};
+test('same size combines but different sizes remain separate cart lines',()=>{let c=addItem([],product,'M',2);c=addItem(c,product,'M',1);c=addItem(c,product,'L',1);assert.deepEqual(c,[{id:'shirt',size:'M',quantity:3},{id:'shirt',size:'L',quantity:1}]);assert.equal(subtotal(c,[product]),12000)});
+test('untrusted stored prices, unavailable products and invalid sizes cannot control totals',()=>{const c=safeCart([{id:'shirt',size:'M',quantity:2,price_cents:1},{id:'shirt',size:'XX',quantity:3},{id:'missing',size:'M',quantity:1},{id:'shirt',size:'L',quantity:-1}],[product]);assert.deepEqual(c,[{id:'shirt',size:'M',quantity:2}]);assert.equal(subtotal(c,[{...product,price_cents:3500}]),7000);assert.deepEqual(safeCart(c,[{...product,published:false}]),[])});
+test('invalid quantities are rejected and malformed storage is harmless',()=>{for(const n of [0,-1,1.2,Infinity,100])assert.throws(()=>addItem([],product,'M',n));assert.throws(()=>addItem([{id:'shirt',size:'M',quantity:99}],product,'M',1));assert.deepEqual(safeCart({bad:true},[product]),[])});
+test('owner price conversion is exact and rejects fractions of a cent',()=>{assert.equal(parsePrice('29.99'),2999);assert.equal(parsePrice('30'),3000);for(const s of ['0','-3','0.001','NaN','1e2'])assert.throws(()=>parsePrice(s))});
