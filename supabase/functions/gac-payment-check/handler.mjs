@@ -28,7 +28,9 @@ export function createHandler({env,fetcher=fetch}){
     const code=data.messages?.message?.[0]?.code;
     return reply({ok:false,message:code==='E00007'?'Authorize.net rejected the API Login ID or Transaction Key. Check that both are from your live account.':'Authorize.net did not validate the credentials. Review your gateway settings and try again.'});
    }
-   return reply({ok:true,message:'Live Authorize.net credentials verified. Signature Key is saved in the expected format; its authenticity will be checked with a signed webhook test. No charge was made. Member checkout remains disabled.'});
+   const notificationStatus=await call('/rest/v1/rpc/gac_owner_payment_notification_status',{method:'POST',body:'{}'});
+   const lastNotification=notificationStatus.ok?await notificationStatus.json():null;
+   return reply({ok:true,lastNotification,message:(lastNotification?'Signed payment notification received '+lastNotification+'. ':'')+'Live Authorize.net credentials verified. Signature Key is saved in the expected format. Member crediting still requires transaction verification. No charge was made. Member checkout remains disabled.'});
   }catch{return reply({error:'Payment connection check could not finish. Try again shortly.'},502)}
  };
 }
