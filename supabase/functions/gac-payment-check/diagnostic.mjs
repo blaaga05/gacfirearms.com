@@ -16,12 +16,13 @@ export async function diagnoseHosted({env,fetcher=fetch}){
  const setting=(settingName,value)=>({settingName,settingValue:JSON.stringify(value)});
  const minimal={setting:[setting('hostedPaymentReturnOptions',{showReceipt:true,url:'https://gacfirearms.com/account.html',cancelUrl:'https://gacfirearms.com/account.html'}),setting('hostedPaymentCustomerOptions',{showEmail:false,requiredEmail:false,addPaymentProfile:false}),setting('hostedPaymentPaymentOptions',{showCreditCard:true,showBankAccount:false,cardCodeRequired:true})]};
  const full=hostedSettings(crypto.randomUUID());
- const variants=[['Minimal form',minimal,false],['Current checkout settings',full,true],['Current settings without custom color',{setting:full.setting.filter(x=>x.settingName!=='hostedPaymentStyleOptions')},true]];
- const results=await Promise.all(variants.map(async([name,options,complete])=>{
+ const without=name=>({setting:full.setting.filter(x=>x.settingName!==name)});
+ const variants=[['Minimal form',minimal,'base'],['Minimal form with invoice',minimal,'invoice'],['Minimal form with invoice and USD',minimal,'complete'],['Full settings without CAPTCHA',without('hostedPaymentSecurityOptions'),'complete'],['Full settings without billing override',without('hostedPaymentBillingAddressOptions'),'complete'],['Full settings without order panel',without('hostedPaymentOrderOptions'),'complete']];
+ const results=await Promise.all(variants.map(async([name,options,mode])=>{
   try{
    // Request and load a $1 form without entering any payment information. No
    // transaction-creation API is called and no token is returned to the browser.
-   const transactionRequest={transactionType:'authCaptureTransaction',amount:'1.00',...(complete?{currencyCode:'USD',order:{invoiceNumber:'DIAG'+crypto.randomUUID().replaceAll('-','').slice(0,16),description:'Hosted form diagnostic'}}:{})};
+   const transactionRequest={transactionType:'authCaptureTransaction',amount:'1.00',...(mode!=='base'?{order:{invoiceNumber:'DIAG'+crypto.randomUUID().replaceAll('-','').slice(0,16)}}:{}),...(mode==='complete'?{currencyCode:'USD'}:{})};
    const response=await fetcher('https://api.authorize.net/xml/v1/request.api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({getHostedPaymentPageRequest:{merchantAuthentication:authentication,transactionRequest,hostedPaymentSettings:options}}),signal:AbortSignal.timeout(12000)});
    if(!response.ok)return name+': token request HTTP '+response.status;
    const data=JSON.parse((await response.text()).replace(/^\uFEFF/,''));
