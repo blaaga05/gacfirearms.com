@@ -29,3 +29,9 @@ Sources: https://developer.authorize.net/api/reference/features/transaction-repo
 
 ## Automatic number release (sandbox)
 Apply payment-number-release.sql after payment-recovery.sql. Purchased number snapshots remain on the original order under existing order RLS. Release uses the collection lock shared by checkout and recognition and records numbers_released_at. The receipt adapter and owner member details read the saved snapshot after an allocation is released. Verified sandbox void released its number; rollback tests cover full refund release, receipt preservation, resale plus old event replay, closed collection and recognition snapshot protection. Actual settled refund testing remains pending; this does not complete production launch.
+
+## Additional reservation verification
+Two independent database requests overlapped while the first held the collection lock for eight seconds. Only the first account retained number 1; the second account received the expected reserved-number rejection. Temporary synthetic account, consent/callsign history, messages, holds and collection were removed and absence verified. The rollback competition test also passed cross-account checkout privacy, stale-payment review, current-holder fulfillment and duplicate notification/order checks. This verifies concurrent database requests, not a two-browser UI test. Mobile logo download and actual settled refunds remain outstanding.
+
+## Member checks confirmed by owner
+Mobile digital logo download opens and saves successfully. Disabling sandbox checkout shows Checkout temporarily unavailable. Keep checkout disabled while remaining scenarios are verified.

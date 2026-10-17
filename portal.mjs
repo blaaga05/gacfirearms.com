@@ -1,10 +1,10 @@
 import {mountMerchAdmin} from './merch-admin.mjs?v=20261016-accessories';
 import {mountHostedCheckout} from './hosted-checkout.mjs?v=20261017-payment-recovery';
-import {mountManualAssignment} from './manual-assignment.mjs?v=20261015-manual-assign';
+import {mountManualAssignment} from './manual-assignment.mjs?v=20261017-selection-controls';
 import {mountAdminAnnouncements} from './admin-announcements.mjs?v=20261015-announcements';
 import {mountOwnerPresence} from './owner-presence.mjs?v=20261015-owner-online';
 import {mountSharedRecognition,personalRecognitionReady} from './shared-recognition.mjs?v=20261014-simple-popup';
-import {mountNumberReservations,collectionIsOpen} from './number-reservations.mjs?v=20261015-manual-assign';
+import {mountNumberReservations,collectionIsOpen} from './number-reservations.mjs?v=20261017-selection-controls';
 import {wheelSequence} from './wheel-sequence.mjs?v=20261011-multi-spin';
 import {mountMessages} from './messages.mjs?v=20261017-review-alerts';
 export function mountPortal({client,api,status,action,refresh}){
