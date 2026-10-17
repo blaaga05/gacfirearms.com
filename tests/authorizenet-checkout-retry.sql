@@ -1,4 +1,5 @@
 begin;
+update gac_private.checkout_settings set enabled=true where singleton;
 do $$declare o uuid;g uuid:=extensions.gen_random_uuid();a uuid;b uuid;c uuid;request uuid:=extensions.gen_random_uuid();invoice_old text;outcome text;
 begin
  select user_id into strict o from gac_private.owners limit 1;
