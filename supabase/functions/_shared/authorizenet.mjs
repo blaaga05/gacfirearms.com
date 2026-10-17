@@ -34,20 +34,9 @@ export async function processNotification(env,data,fetcher=fetch){
  try{response=await authorize(env,'getTransactionDetailsRequest',{transId:tx},fetcher)}catch(e){throw e}
  const t=response.transaction;
  if(!t||String(t.transId)!==tx)throw Error('Transaction details unavailable');
- const invoice=t.order?.invoiceNumber;
- let outcome='ignored';
- if(t.transactionType==='refundTransaction'||t.transactionStatus==='voided'){
-  const {observeTransaction}=await import('../gac-payment-recovery/handler.mjs');await observeTransaction(env,t,fetcher);
-  await db('gac_finish_authorizenet_notification',{p_notification:data.notificationId,p_outcome:'ignored'});return 'ignored';
- }
- if(typeof invoice==='string'&&/^GAC[a-f\d]{17}$/.test(invoice)){
-  // Amount and invoice come exclusively from authenticated gateway reporting.
-  // Ledger currency is USD; verify the merchant account currency before rollout.
-  const status=String(t.transactionStatus||'unknown');
-  const approved=String(t.responseCode)==='1'&&t.transactionType==='authCaptureTransaction'&&!t.splitTenderId;
-  const result=await db('gac_apply_authorizenet_payment',{p_transaction:tx,p_invoice:invoice,p_amount_cents:cents(t.settleAmount??t.authAmount),p_paid_at:t.submitTimeUTC,p_status:approved?status:'unapproved:'+status,p_currency:'usd'});
-  outcome=result==='credited'?'credited':result==='review'?'review':'ignored';
- }
+ const {observeTransaction}=await import('../gac-payment-recovery/handler.mjs');
+ const result=await observeTransaction(env,t,fetcher);
+ const outcome=result.outcome==='credited'?'credited':['review','replacement'].includes(result.outcome)?'review':'ignored';
  await db('gac_finish_authorizenet_notification',{p_notification:data.notificationId,p_outcome:outcome});
  return outcome;
 }
