@@ -1,12 +1,12 @@
 import {mountMerchAdmin} from './merch-admin.mjs?v=20261016-accessories';
-import {mountHostedCheckout} from './hosted-checkout.mjs?v=20261016-sandbox-gate';
+import {mountHostedCheckout} from './hosted-checkout.mjs?v=20261017-review-popup';
 import {mountManualAssignment} from './manual-assignment.mjs?v=20261015-manual-assign';
 import {mountAdminAnnouncements} from './admin-announcements.mjs?v=20261015-announcements';
 import {mountOwnerPresence} from './owner-presence.mjs?v=20261015-owner-online';
 import {mountSharedRecognition,personalRecognitionReady} from './shared-recognition.mjs?v=20261014-simple-popup';
 import {mountNumberReservations,collectionIsOpen} from './number-reservations.mjs?v=20261015-manual-assign';
 import {wheelSequence} from './wheel-sequence.mjs?v=20261011-multi-spin';
-import {mountMessages} from './messages.mjs?v=20261015-announcements';
+import {mountMessages} from './messages.mjs?v=20261017-review-alerts';
 export function mountPortal({client,api,status,action,refresh}){
  const $=id=>document.getElementById(id),el=(tag,text)=>{const x=document.createElement(tag);x.textContent=text;return x},read=async q=>{const {data,error}=await q;if(error)throw error;return data};
  let owner=false,profile=null,collections=[],archivedCollections=[],active=null,entries=[],result=null,selected=new Set(),panel='collection',ownerPanel='collections',polling=false,lastPoll=0,lastAwardPoll=0,awardSignature='',awardLoading=false,artUrl='',artPath=null,artExpires=0,serverOffset=0;
