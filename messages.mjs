@@ -17,5 +17,5 @@ export function mountMessages({client,addPanel,addAdmin,nav,show,action,status})
  $('messageOlder').onclick=()=>action(()=>loadThread(true));
  $('messageForm').onsubmit=e=>{e.preventDefault();return action(async()=>{if(!profile||!thread)throw Error('Choose a conversation first');const body=$('messageBody').value.trim();if(!body)throw Error('Enter a message');const token=epoch;await read(client.rpc('gac_send_message',{p_member_id:thread,p_body:body}));if(token!==epoch)return;$('messageBody').value='';await loadThread();await refresh();status('Message sent and saved.');})};
  setInterval(()=>refresh(),5000);
- return {sync,clear,async open(){opened=true;await refresh()},enforce(){if(!thread)$('messageSend').disabled=true;}};
+ return {sync,clear,async openMember(id){if(!owner||!profile||!people.some(p=>p.user_id===id))throw Error('Owner access and a valid member are required');opened=true;await choose(id);$('messageBody').focus();},async open(){opened=true;await refresh()},enforce(){if(!thread)$('messageSend').disabled=true;}};
 }

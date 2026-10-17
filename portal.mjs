@@ -1,12 +1,12 @@
 import {mountMerchAdmin} from './merch-admin.mjs?v=20261016-accessories';
-import {mountHostedCheckout} from './hosted-checkout.mjs?v=20261017-checkout-switch';
+import {mountHostedCheckout} from './hosted-checkout.mjs?v=20261017-member-identities';
 import {mountManualAssignment} from './manual-assignment.mjs?v=20261017-selection-controls';
 import {mountAdminAnnouncements} from './admin-announcements.mjs?v=20261015-announcements';
 import {mountOwnerPresence} from './owner-presence.mjs?v=20261015-owner-online';
 import {mountSharedRecognition,personalRecognitionReady} from './shared-recognition.mjs?v=20261014-simple-popup';
 import {mountNumberReservations,collectionIsOpen} from './number-reservations.mjs?v=20261017-selection-controls';
 import {wheelSequence} from './wheel-sequence.mjs?v=20261011-multi-spin';
-import {mountMessages} from './messages.mjs?v=20261017-review-alerts';
+import {mountMessages} from './messages.mjs?v=20261017-member-identities';
 export function mountPortal({client,api,status,action,refresh}){
  const $=id=>document.getElementById(id),el=(tag,text)=>{const x=document.createElement(tag);x.textContent=text;return x},read=async q=>{const {data,error}=await q;if(error)throw error;return data};
  let owner=false,profile=null,collections=[],archivedCollections=[],active=null,entries=[],result=null,selected=new Set(),panel='collection',ownerPanel='collections',polling=false,lastPoll=0,lastAwardPoll=0,awardSignature='',awardLoading=false,artUrl='',artPath=null,artExpires=0,serverOffset=0;
@@ -85,7 +85,7 @@ export function mountPortal({client,api,status,action,refresh}){
  addAdmin('payments','Payment setup','<div class="card"><h2>Authorize.net connection</h2><p>Check the server-side credentials without making a charge. Member checkout stays disabled while payment verification is being set up.</p><button id="checkPaymentConnection" type="button">Check Authorize.net connection</button><p id="paymentConnectionStatus" role="status" aria-live="polite"></p></div>');
  $('checkPaymentConnection').onclick=()=>action(async()=>{if(!owner)throw Error('Owner access required');const current=profile?.user_id;$('paymentConnectionStatus').textContent='Checking securely…';const {data,error}=await client.functions.invoke('gac-payment-check',{body:{}});if(!owner||profile?.user_id!==current)return;if(error){$('paymentConnectionStatus').textContent='Connection check could not finish. Please sign in again and retry.';throw Error('Payment connection check failed.');}$('paymentConnectionStatus').textContent=data.message||data.error||'Connection check finished.';});
  const diagnoseButton=el('button','Diagnose hosted payment form');diagnoseButton.type='button';diagnoseButton.className='secondary';$('checkPaymentConnection').after(diagnoseButton);$('paymentConnectionStatus').style.whiteSpace='pre-wrap';diagnoseButton.onclick=()=>action(async()=>{if(!owner)throw Error('Owner access required');const current=profile?.user_id;$('paymentConnectionStatus').textContent='Comparing hosted form requests securely…';const {data,error}=await client.functions.invoke('gac-payment-check',{body:{action:'diagnose'}});if(!owner||profile?.user_id!==current)return;$('paymentConnectionStatus').textContent=error?'Diagnostic could not finish. Please retry.':data.message||data.error||'Diagnostic completed.';});
- paymentUI=mountHostedCheckout({client,mount:adminPanels.payments.querySelector('.card'),action,status,refresh,onCheckoutChanged:updateCheckout});
+ paymentUI=mountHostedCheckout({client,mount:adminPanels.payments.querySelector('.card'),action,status,refresh,onCheckoutChanged:updateCheckout,openMember:id=>action(async()=>{const m=memberList.find(m=>m.user_id===id);if(!m)throw Error('Refresh the member list and try again.');openMember(m);}),messageMember:id=>action(async()=>{show('messages');await messageUI.openMember(id);})});
  presence=mountOwnerPresence({client,mount:member});
  sharedNotice=mountSharedRecognition();
  const holdLabel=el('label','Unpaid number hold duration (minutes)');holdLabel.htmlFor='holdMinutes';const holdInput=document.createElement('input');holdInput.id='holdMinutes';holdInput.type='number';holdInput.min='1';holdInput.max='60';holdInput.step='1';holdInput.required=true;holdInput.value='10';const holdHelp=el('p','Choose 1–60 minutes. This applies to new holds; existing holds keep their expiry. Holds always end by recognition time.');holdHelp.className='small';$('wheelForm').querySelector('label[for="wheelSchedule"]').before(holdLabel,holdInput,holdHelp);
