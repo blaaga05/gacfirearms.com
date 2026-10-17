@@ -18,12 +18,12 @@ export function gatewayConfig(env){
 
 export function backend(env,fetcher=fetch){
  const url=env('SUPABASE_URL'),key=env('SUPABASE_SERVICE_ROLE_KEY')||JSON.parse(env('SUPABASE_SECRET_KEYS')||'{}').default;
- return async(name,args)=>{if(!url||!key)throw Error('Backend not configured');const r=await fetcher(url+'/rest/v1/rpc/'+name,{method:'POST',headers:{apikey:key,Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(args),signal:AbortSignal.timeout(10000)});if(!r.ok)throw Error('Payment database operation failed');return r.json()};
+ return async(name,args)=>{if(!url||!key)throw Error('Backend not configured');const r=await fetcher(url+'/rest/v1/rpc/'+name,{method:'POST',headers:{apikey:key,Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(args),signal:AbortSignal.timeout(10000)});if(!r.ok)throw Error('Payment database operation failed');const text=await r.text();return text?JSON.parse(text):null};
 }
-export async function authorize(env,name,params,fetcher=fetch){
+export async function authorize(env,name,params,fetcher=fetch,allowEmpty=false){
  const {login,key,api}=gatewayConfig(env);if(!login||!key)throw Error('Payment gateway not configured');
  const r=await fetcher(api,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[name]:{merchantAuthentication:{name:login,transactionKey:key},...params}}),signal:AbortSignal.timeout(15000)});
- if(!r.ok)throw Error('Payment gateway unavailable');const data=JSON.parse((await r.text()).replace(/^\uFEFF/,''));if(data.messages?.resultCode!=='Ok')throw Error('Payment gateway could not complete this request');return data;
+ if(!r.ok)throw Error('Payment gateway unavailable');const data=JSON.parse((await r.text()).replace(/^\uFEFF/,''));if(data.messages?.resultCode!=='Ok'&&!(allowEmpty&&data.messages?.message?.some(m=>m.code==='E00040'))){const code=data.messages?.message?.[0]?.code;throw Object.assign(Error('Payment gateway could not complete this request'),{code:/^E[0-9]{5}$/.test(code||'')?code:undefined});}return data;
 }
 export function cents(value){const s=String(value);if(!/^\d{1,8}(\.\d{1,2})?$/.test(s))throw Error('Invalid gateway amount');const [a,b='']=s.split('.');return Number(a)*100+Number(b.padEnd(2,'0'));}
 export async function processNotification(env,data,fetcher=fetch){
@@ -36,6 +36,10 @@ export async function processNotification(env,data,fetcher=fetch){
  if(!t||String(t.transId)!==tx)throw Error('Transaction details unavailable');
  const invoice=t.order?.invoiceNumber;
  let outcome='ignored';
+ if(t.transactionType==='refundTransaction'||t.transactionStatus==='voided'){
+  const {observeTransaction}=await import('../gac-payment-recovery/handler.mjs');await observeTransaction(env,t,fetcher);
+  await db('gac_finish_authorizenet_notification',{p_notification:data.notificationId,p_outcome:'ignored'});return 'ignored';
+ }
  if(typeof invoice==='string'&&/^GAC[a-f\d]{17}$/.test(invoice)){
   // Amount and invoice come exclusively from authenticated gateway reporting.
   // Ledger currency is USD; verify the merchant account currency before rollout.
