@@ -1,0 +1,8 @@
+# Pending payment review notice
+Sandbox-only until remaining payment launch checks pass.
+
+A signed-in member sees an acknowledgment popup when the server has verified that their own Authorize.net transaction is FDSPendingReview or FDSAuthorizedPendingReview. It says payment is pending review, no numbers have been credited, and not to pay again. It shows the original number-hold deadline only while all original holds remain valid. Otherwise it explicitly says the number is not secured and to contact GAC before another purchase. Review never extends or recreates a hold.
+
+The notice links to GAC messages. Acknowledgment suppresses the same state during the session; expiration can show a new warning. Polling closes a displayed notice when the verified held state disappears. Signing out or switching members clears it. Other member payment details remain inaccessible. Gateway reporting recovery currently checks on a five-minute schedule, so a newly held payment may take a few minutes to appear.
+
+Verified in rollback database tests: both member privacy and original hold deadline, expired hold warning data, no order or allocation while held, removal after approved fulfillment, and anonymous denial. UI tests cover acknowledgment, expiration, resolution, server clock correction, dialog sequencing, and account isolation. Recovery tests reject fulfillment for both fraud-review statuses regardless of response code. Actual sandbox merchant confirmed the test transaction is Fraud Review and the member still sees only a temporary hold; gateway reporting independently verified held status and no credited order. Actual approval/decline and mobile popup viewing remain to be checked with the owner.
