@@ -1,10 +1,14 @@
+const statusLabels={review:'Needs review',paid:'Paid',credited:'Verified',capturedPendingSettlement:'Captured',settledSuccessfully:'Settled',voided:'Voided',refundPendingSettlement:'Refund pending',refundSettledSuccessfully:'Refunded',FDSAuthorizedPendingReview:'Held for review',FDSPendingReview:'Held for review',declined:'Declined',expired:'Expired',partially_refunded:'Partial refund'};
+export function paymentActivityPage(rows,query='',page=0,size=5){const q=query.trim().toLowerCase();const matches=rows.filter(r=>!q||[r.callsign,r.full_name,r.contact_email,r.collection,r.transaction_id,...(r.numbers||[])].join(' ').toLowerCase().includes(q));const pages=Math.max(1,Math.ceil(matches.length/size)),index=Math.max(0,Math.min(page,pages-1));return {rows:matches.slice(index*size,index*size+size),total:matches.length,pages,page:index};}
 export function appendPaymentIdentity({row,record:r,openMember,messageMember}){
  const el=(tag,text)=>{const e=document.createElement(tag);e.textContent=text;return e;};
- const name=el('strong',[r.callsign,r.full_name].filter(Boolean).join(' · ')||'Member information unavailable');name.style.cssText='display:block;font-size:20px';
- const info=el('p',r.collection+' · Numbers '+(r.numbers||[]).join(', ')+' · '+new Intl.NumberFormat('en-US',{style:'currency',currency:r.currency||'USD'}).format(r.amount_cents/100)+' · '+String(r.status||'review').replaceAll('_',' '));
- row.append(name,info);
- if(r.contact_email){const email=el('a',r.contact_email);email.href='mailto:'+r.contact_email;email.style.display='block';row.append(email);}
- const details=el('button','Member details'),message=el('button','Message member');details.type=message.type='button';details.className=message.className='secondary';details.disabled=message.disabled=!r.member_id;details.onclick=()=>openMember(r.member_id);message.onclick=()=>messageMember(r.member_id);row.append(details,message);
- const reference=el('p','Transaction '+r.transaction_id+(r.observed_at?' · '+new Date(r.observed_at).toLocaleString():r.created_at?' · '+new Date(r.created_at).toLocaleString():''));reference.className='small';row.append(reference);
+ const disclosure=el('details',''),summary=el('summary',''),body=el('div','');disclosure.className='payment-transaction';summary.className='payment-transaction-summary';body.className='payment-transaction-details';summary.title='Open transaction details';
+ const name=el('strong',[r.callsign,r.full_name].filter(Boolean).join(' · ')||'Member information unavailable');name.className='payment-transaction-name';
+ const numbers=(r.numbers||[]).map(n=>'#'+n).join(', '),group=el('span',r.collection+(numbers?' · '+numbers:''));group.className='payment-transaction-group';
+ const amount=el('span',new Intl.NumberFormat('en-US',{style:'currency',currency:r.currency||'USD'}).format(r.amount_cents/100));amount.className='payment-transaction-amount';
+ const status=el('span',statusLabels[r.status]||String(r.status||'review').replaceAll('_',' '));status.className='payment-transaction-status';summary.append(name,group,amount,status);
+ if(r.contact_email){const email=el('a',r.contact_email);email.href='mailto:'+r.contact_email;body.append(email);}
+ const reference=el('p','Transaction '+r.transaction_id+(r.observed_at?' · '+new Date(r.observed_at).toLocaleString():r.created_at?' · '+new Date(r.created_at).toLocaleString():''));reference.className='small';body.append(reference);
+ const actions=el('div','');actions.className='payment-row-actions';const details=el('button','Member details'),message=el('button','Message member');details.type=message.type='button';details.className=message.className='secondary';details.disabled=message.disabled=!r.member_id;details.onclick=()=>openMember(r.member_id);message.onclick=()=>messageMember(r.member_id);actions.append(details,message);body.append(actions);
+ disclosure.append(summary,body);row.append(disclosure);return body;
 }
-
