@@ -1,0 +1,25 @@
+begin;
+do $$declare o uuid;g uuid:=extensions.gen_random_uuid();i uuid;inv text;mid uuid;baseline bigint;
+begin
+ select user_id into strict o from gac_private.owners limit 1;
+ insert into public.gac_collections(id,callsign,quantity,price_cents,state,release_at,is_test) values(g,'REVIEW_ALERT_ROLLBACK_FIXTURE',2,100,'open',now()-interval '1 minute',false);
+ perform set_config('request.jwt.claims',json_build_object('sub',o,'role','authenticated')::text,true);perform set_config('request.jwt.claim.sub',o::text,true);set local role authenticated;
+ baseline:=public.gac_message_unread_count();perform public.gac_hold_number(g,1);i:=public.gac_begin_hosted_checkout(g,array[1],true,extensions.gen_random_uuid());perform public.gac_release_my_numbers(g,null);
+ reset role;select invoice into inv from gac_private.authorizenet_checkouts where id=i;
+ perform set_config('request.jwt.claims','{"role":"service_role"}',true);set local role service_role;
+ perform public.gac_apply_authorizenet_payment('98765888',inv,100,now(),'capturedPendingSettlement');perform public.gac_apply_authorizenet_payment('98765888',inv,100,now(),'capturedPendingSettlement');reset role;
+ if (select count(*) from public.gac_messages where payment_review_transaction='98765888')<>1 then raise exception 'Missing or duplicate alert';end if;
+ select id into strict mid from public.gac_messages where payment_review_transaction='98765888';
+ perform set_config('request.jwt.claims',json_build_object('sub',o,'role','authenticated')::text,true);perform set_config('request.jwt.claim.sub',o::text,true);set local role authenticated;
+ if public.gac_message_unread_count()<>baseline+1 then raise exception 'Owner unread badge not increased';end if;
+ if not exists(select 1 from public.gac_my_payment_reviews() where checkout_id=i) then raise exception 'Member review missing';end if;
+ if not exists(select 1 from public.gac_message_inbox() where member_id=o and unread_count>0) then raise exception 'Owner inbox alert missing';end if;
+ perform public.gac_mark_messages_read(array[mid]);if public.gac_message_unread_count()<>baseline then raise exception 'Owner alert not acknowledged';end if;
+ perform public.gac_resolve_payment_review('98765888','Rollback fixture: void verified in sandbox');
+ if exists(select 1 from public.gac_my_payment_reviews() where checkout_id=i) then raise exception 'Resolved popup still returned';end if;
+ reset role;perform set_config('request.jwt.claims',json_build_object('sub',extensions.gen_random_uuid(),'role','authenticated')::text,true);perform set_config('request.jwt.claim.sub',extensions.gen_random_uuid()::text,true);set local role authenticated;
+ begin perform public.gac_my_payment_reviews();raise exception 'Nonmember read reviews';exception when insufficient_privilege then null;end;
+ reset role;
+ if has_function_privilege('anon','public.gac_my_payment_reviews()','execute') then raise exception 'Anonymous reviews exposed';end if;
+end $$;
+rollback;
