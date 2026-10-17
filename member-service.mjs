@@ -44,7 +44,7 @@ export function memberService(client, origin) {
       await user();return unwrap(await client.auth.updateUser({password}));
     },
     async myProfile() { const u=await user();return unwrap(await client.from('gac_profiles').select('*').eq('user_id',u.id).single()); },
-    async myPurchases() { const u=await user();return unwrap(await client.from('gac_orders').select('*,gac_numbers(edition_number,callsign_at_purchase),gac_collections(callsign)').eq('user_id',u.id).order('paid_at',{ascending:false})); },
+    async myPurchases() { const u=await user();return unwrap(await client.from('gac_orders').select('*,gac_numbers(edition_number,callsign_at_purchase),gac_collections(callsign)').eq('user_id',u.id).order('paid_at',{ascending:false})).map(o=>({...o,gac_numbers:o.purchased_numbers?.length?o.purchased_numbers:o.gac_numbers})); },
     async updateMyProfile(values) {
       const u=await user();
       const allowed=['callsign','full_name','contact_email','phone','preferred_ffl_name','preferred_ffl_address'];

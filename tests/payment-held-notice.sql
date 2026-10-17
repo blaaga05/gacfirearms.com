@@ -1,0 +1,28 @@
+begin;
+update gac_private.checkout_settings set enabled=true where singleton;
+do $$declare o uuid;m uuid:=extensions.gen_random_uuid();g uuid:=extensions.gen_random_uuid();meta jsonb;i uuid;inv text;deadline timestamptz;
+begin
+ select user_id into strict o from gac_private.owners limit 1;
+ select jsonb_build_object('full_name','Synthetic Held Review','phone','5555550199','age_confirmed',true,'law_agreed',true,'accuracy_confirmed',true,'recognition_acknowledged',true,'requirements_version',version,'minimum_age',minimum_age,'callsign','HELD_'||left(replace(m::text,'-',''),12)) into meta from public.gac_requirements where singleton;
+ insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data)values(m,'held-test-'||m||'@example.invalid',now(),meta);
+ insert into public.gac_collections(id,callsign,quantity,price_cents,state,release_at,is_test)values(g,'HELD_REVIEW_ROLLBACK_FIXTURE',2,100,'open',now()-interval '1 minute',false);
+ perform set_config('request.jwt.claim.sub',o::text,true);set local role authenticated;perform public.gac_hold_number(g,1);i:=public.gac_begin_hosted_checkout(g,array[1],true,extensions.gen_random_uuid());reset role;
+ select invoice into inv from gac_private.authorizenet_checkouts where id=i;select expires_at into deadline from gac_private.number_holds where collection_id=g;
+ perform set_config('request.jwt.claims','{"role":"service_role"}',true);set local role service_role;
+ perform public.gac_observe_gateway_transaction('98765991',inv,null,'authCaptureTransaction','FDSAuthorizedPendingReview',100);reset role;set local role authenticated;
+ if not exists(select 1 from public.gac_my_held_payments() where transaction_id='98765991' and hold_expires_at=deadline and numbers=array[1]) then raise exception 'Held review or original deadline missing';end if;
+ reset role;
+ if exists(select 1 from public.gac_orders where collection_id=g) or exists(select 1 from public.gac_numbers where collection_id=g) then raise exception 'Held payment fulfilled';end if;
+ perform set_config('request.jwt.claim.sub',m::text,true);set local role authenticated;
+ if exists(select 1 from public.gac_my_held_payments() where transaction_id='98765991') then raise exception 'Other member can see held payment';end if;reset role;
+ update gac_private.number_holds set expires_at=clock_timestamp()-interval '1 second' where collection_id=g;
+ perform set_config('request.jwt.claim.sub',o::text,true);set local role authenticated;
+ if not exists(select 1 from public.gac_my_held_payments() where transaction_id='98765991' and hold_expires_at is null) then raise exception 'Expired hold shown secured';end if;reset role;
+ update gac_private.number_holds set expires_at=deadline where collection_id=g;
+ set local role service_role;
+ if public.gac_apply_authorizenet_payment('98765991',inv,100,now(),'capturedPendingSettlement')<>'credited' then raise exception 'Approved payment not credited';end if;
+ perform public.gac_observe_gateway_transaction('98765991',inv,null,'authCaptureTransaction','capturedPendingSettlement',100);reset role;set local role authenticated;
+ if exists(select 1 from public.gac_my_held_payments() where transaction_id='98765991') then raise exception 'Approved review still displayed';end if;reset role;
+ if has_function_privilege('anon','public.gac_my_held_payments()','execute') then raise exception 'Anonymous review access';end if;
+end $$;
+rollback;
