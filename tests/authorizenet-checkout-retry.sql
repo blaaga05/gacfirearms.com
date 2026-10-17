@@ -1,0 +1,27 @@
+begin;
+do $$declare o uuid;g uuid:=extensions.gen_random_uuid();a uuid;b uuid;c uuid;request uuid:=extensions.gen_random_uuid();invoice_old text;outcome text;
+begin
+ select user_id into strict o from gac_private.owners limit 1;
+ insert into public.gac_collections(id,callsign,quantity,price_cents,state,release_at,is_test) values(g,'RETRY_ROLLBACK_FIXTURE',5,100,'open',now()-interval '1 minute',false);
+ perform set_config('request.jwt.claims',json_build_object('sub',o,'role','authenticated')::text,true);perform set_config('request.jwt.claim.sub',o::text,true);set local role authenticated;
+ perform public.gac_hold_number(g,1);a:=public.gac_begin_hosted_checkout(g,array[1],true,request);
+ if public.gac_begin_hosted_checkout(g,array[1],true,request)<>a then raise exception 'Valid retry was not idempotent';end if;
+ perform public.gac_release_my_numbers(g,null);perform public.gac_hold_number(g,2);
+ b:=public.gac_begin_hosted_checkout(g,array[2],true,extensions.gen_random_uuid());
+ if a=b then raise exception 'Released checkout reused';end if;
+ reset role;
+ if (select status from gac_private.authorizenet_checkouts where id=a)<>'expired' then raise exception 'Abandoned intent not expired';end if;
+ select invoice into invoice_old from gac_private.authorizenet_checkouts where id=a;
+ perform set_config('request.jwt.claims','{"role":"service_role"}',true);set local role service_role;
+ outcome:=public.gac_apply_authorizenet_payment('98765999',invoice_old,100,now(),'capturedPendingSettlement');
+ if outcome<>'review' then raise exception 'Old form payment was credited';end if;
+ reset role;
+ if exists(select 1 from public.gac_numbers where collection_id=g) then raise exception 'Abandoned payment assigned number';end if;
+ perform set_config('request.jwt.claims',json_build_object('sub',o,'role','authenticated')::text,true);perform set_config('request.jwt.claim.sub',o::text,true);set local role authenticated;
+ perform public.gac_release_my_numbers(g,null);perform public.gac_hold_number(g,2);
+ c:=public.gac_begin_hosted_checkout(g,array[2],true,extensions.gen_random_uuid());
+ if c=b then raise exception 'Reacquired same number reused old hold snapshot';end if;
+ reset role;
+ if (select count(*) from gac_private.authorizenet_checkouts where collection_id=g and status='pending')<>1 then raise exception 'Multiple usable pending intents';end if;
+end $$;
+rollback;
