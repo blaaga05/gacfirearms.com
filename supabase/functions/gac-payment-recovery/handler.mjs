@@ -6,8 +6,9 @@ export async function observeTransaction(env,t,fetcher=fetch){
  const tx=String(t?.transId||'');if(!/^\d{1,30}$/.test(tx))throw Error('Invalid transaction details');
  const db=backend(env,fetcher),invoice=t.order?.invoiceNumber,reference=t.refTransId?String(t.refTransId):null;
  const amount=cents(t.settleAmount??t.authAmount??0),status=String(t.transactionStatus||'unknown'),kind=String(t.transactionType||'unknown');let outcome='ignored';
- if(invoicePattern.test(invoice||'')&&kind==='authCaptureTransaction'&&['capturedPendingSettlement','settledSuccessfully'].includes(status)&&String(t.responseCode)==='1'&&!t.splitTenderId){
-  outcome=await db('gac_apply_authorizenet_payment',{p_transaction:tx,p_invoice:invoice,p_amount_cents:amount,p_paid_at:t.submitTimeUTC,p_status:status,p_currency:'usd'});
+ if(invoicePattern.test(invoice||'')&&kind==='authCaptureTransaction'){
+  const approved=String(t.responseCode)==='1'&&!t.splitTenderId;
+  outcome=await db('gac_apply_authorizenet_payment',{p_transaction:tx,p_invoice:invoice,p_amount_cents:amount,p_paid_at:t.submitTimeUTC,p_status:approved?status:'unapproved:'+status,p_currency:'usd'});
  }
  await db('gac_observe_gateway_transaction',{p_transaction:tx,p_invoice:invoicePattern.test(invoice||'')?invoice:null,p_reference:reference&&/^\d{1,30}$/.test(reference)?reference:null,p_kind:kind,p_status:status,p_amount_cents:amount});
  return {outcome,terminal:['settledSuccessfully','voided','declined','expired','refundSettledSuccessfully'].includes(status)};

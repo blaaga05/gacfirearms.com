@@ -1,0 +1,90 @@
+begin;
+update gac_private.checkout_settings set enabled=true where singleton;
+do $$declare o uuid;m uuid:=extensions.gen_random_uuid();g uuid:=extensions.gen_random_uuid();h uuid:=extensions.gen_random_uuid();k uuid:=extensions.gen_random_uuid();meta jsonb;i uuid;j uuid;z uuid;inv text;invj text;invz text;r text;deadline timestamptz;
+begin
+ select user_id into strict o from gac_private.owners limit 1;
+ select jsonb_build_object('full_name','Synthetic Allocation Test','phone','5555550199','age_confirmed',true,'law_agreed',true,'accuracy_confirmed',true,'recognition_acknowledged',true,'requirements_version',version,'minimum_age',minimum_age,'callsign','ALLOC_'||left(replace(m::text,'-',''),10))into meta from public.gac_requirements where singleton;
+ insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data)values(m,'allocation-'||m||'@example.invalid',now(),meta);
+ insert into public.gac_collections(id,callsign,quantity,price_cents,state,release_at,is_test)values(g,'ALLOCATION_LATE_FIXTURE',5,100,'open',now()-interval '1 day',false),(h,'ALLOCATION_HELD_FIXTURE',5,100,'open',now()-interval '1 day',false),(k,'ALLOCATION_REPLACEMENT_FIXTURE',5,100,'open',now()-interval '1 day',false);
+ perform set_config('request.jwt.claim.sub',o::text,true);set local role authenticated;
+ perform public.gac_hold_number(g,1);i:=public.gac_begin_hosted_checkout(g,array[1],true,extensions.gen_random_uuid());reset role;select invoice into inv from gac_private.authorizenet_checkouts where id=i;
+ update gac_private.authorizenet_checkouts set created_at=now()-interval '5 minutes',expires_at=now()-interval '1 minute',token_claimed_at=now()-interval '5 minutes'where id=i;update gac_private.number_holds set expires_at=now()-interval '1 minute'where collection_id=g;
+ if gac_private.payment_number_free(g,6,i)then raise exception 'Out of range number considered available';end if;
+ if not gac_private.payment_check_pending(g,1)then raise exception 'Unverified payment expiry not gated';end if;
+ perform set_config('request.jwt.claims','{"role":"service_role"}',true);set local role service_role;
+ if public.gac_apply_authorizenet_payment('98766001',inv,100,now(),'capturedPendingSettlement')<>'credited'then raise exception 'Available late number not credited';end if;
+ perform public.gac_apply_authorizenet_payment('98766001',inv,100,now(),'capturedPendingSettlement');reset role;
+ if(select count(*)from public.gac_orders where collection_id=g)<>1 or(select count(*)from public.gac_numbers where collection_id=g)<>1 then raise exception 'Late replay duplicate';end if;
+ set local role authenticated;perform public.gac_hold_number(h,1);j:=public.gac_begin_hosted_checkout(h,array[1],true,extensions.gen_random_uuid());reset role;select invoice into invj from gac_private.authorizenet_checkouts where id=j;
+ update gac_private.authorizenet_checkouts set created_at=now()-interval '5 minutes',expires_at=now()-interval '1 minute',token_claimed_at=now()-interval '5 minutes'where id=j;update gac_private.number_holds set expires_at=now()-interval '1 minute'where collection_id=h;
+ set local role service_role;
+ if public.gac_apply_authorizenet_payment('98766002',invj,100,now()-interval '2 minutes','unapproved:FDSAuthorizedPendingReview')<>'protected'then raise exception 'Timely review payment unprotected';end if;reset role;
+ if not exists(select 1 from gac_private.payment_reservations where checkout_id=j)or exists(select 1 from public.gac_numbers where collection_id=h)then raise exception 'Review reservation or wheel isolation broken';end if;
+ perform set_config('request.jwt.claim.sub',m::text,true);set local role authenticated;
+ begin perform public.gac_hold_number(h,1);raise exception 'Protected review number stolen';exception when raise_exception then if position('protected for a payment'in sqlerrm)=0 then raise;end if;end;
+ if exists(select 1 from jsonb_array_elements(public.gac_my_payment_allocations())x where x->>'transaction_id'='98766002')then raise exception 'Member payment privacy broken';end if;reset role;
+ perform set_config('request.jwt.claim.sub',o::text,true);set local role service_role;
+ perform public.gac_apply_authorizenet_payment('98766002',invj,0,now()-interval '2 minutes','unapproved:voided');reset role;
+ if not exists(select 1 from gac_private.payment_reservations where checkout_id=j)then raise exception 'Void automatically released protected number';end if;
+ set local role authenticated;if public.gac_owner_release_payment_numbers('98766002')<>1 then raise exception 'Owner manual release failed';end if;reset role;
+ if exists(select 1 from gac_private.payment_reservations where checkout_id=j)then raise exception 'Manual release reservation remains';end if;
+ set local role service_role;
+ if public.gac_apply_authorizenet_payment('98766002',invj,100,now()-interval '2 minutes','capturedPendingSettlement')<>'review'then raise exception 'Released payment replay resurrected';end if;reset role;
+ set local role authenticated;perform public.gac_hold_number(k,1);perform public.gac_hold_number(k,2);perform public.gac_hold_number(k,3);z:=public.gac_begin_hosted_checkout(k,array[1,2,3],true,extensions.gen_random_uuid());reset role;select invoice into invz from gac_private.authorizenet_checkouts where id=z;
+ update gac_private.authorizenet_checkouts set created_at=now()-interval '5 minutes',expires_at=now()-interval '1 minute',token_claimed_at=now()-interval '5 minutes',payment_checked_at=now()where id=z;update gac_private.number_holds set expires_at=now()-interval '1 minute'where collection_id=k;
+ set local role authenticated;perform public.gac_owner_assign_number(k,m,2,'complimentary','Competing assignment','',extensions.gen_random_uuid());reset role;
+ set local role service_role;
+ if public.gac_apply_authorizenet_payment('98766003',invz,300,now(),'capturedPendingSettlement')<>'replacement'then raise exception 'Missing number not offered replacement';end if;reset role;
+ if(select selected_numbers from gac_private.payment_allocations where checkout_id=z)<>array[1,3]then raise exception 'Available original numbers were not retained';end if;
+
+ set local role authenticated;perform public.gac_hold_number(k,4);reset role;
+ set local role service_role;
+ begin perform public.gac_choose_paid_replacements(o,'98766003',array[4]);raise exception 'Competing replacement hold ignored';exception when raise_exception then if position('no longer available'in sqlerrm)=0 then raise;end if;end;
+ reset role;set local role authenticated;perform public.gac_release_my_numbers(k,4);reset role;
+ set local role service_role;
+ if public.gac_choose_paid_replacements(o,'98766003',array[4])<>'credited'then raise exception 'Replacement not credited';end if;
+ perform public.gac_choose_paid_replacements(o,'98766003',array[4]);reset role;
+ if(select count(*)from public.gac_numbers where order_id=(select order_id from gac_private.authorizenet_checkouts where id=z))<>3 or(select amount_cents from public.gac_orders where id=(select order_id from gac_private.authorizenet_checkouts where id=z))<>300 then raise exception 'Replacement quantity or original payment amount changed';end if;
+ if(select array_agg(edition_number order by edition_number)from public.gac_numbers where order_id=(select order_id from gac_private.authorizenet_checkouts where id=z))<>array[1,3,4]then raise exception 'Replacement numbers incorrect';end if;
+
+ -- No replacements: preserve payment allocations until verified reversal and explicit owner release.
+ set local role authenticated;perform public.gac_hold_number(h,2);z:=public.gac_begin_hosted_checkout(h,array[2],true,extensions.gen_random_uuid());reset role;select invoice into invz from gac_private.authorizenet_checkouts where id=z;
+ update gac_private.authorizenet_checkouts set created_at=now()-interval '5 minutes',expires_at=now()-interval '1 minute',payment_checked_at=now()where id=z;update gac_private.number_holds set expires_at=now()-interval '1 minute'where collection_id=h;
+ set local role authenticated;
+ perform public.gac_owner_assign_number(h,m,1,'complimentary','No alternatives','',extensions.gen_random_uuid());
+ perform public.gac_owner_assign_number(h,m,2,'complimentary','No alternatives','',extensions.gen_random_uuid());
+ perform public.gac_owner_assign_number(h,m,3,'complimentary','No alternatives','',extensions.gen_random_uuid());
+ perform public.gac_owner_assign_number(h,m,4,'complimentary','No alternatives','',extensions.gen_random_uuid());
+ perform public.gac_owner_assign_number(h,m,5,'complimentary','No alternatives','',extensions.gen_random_uuid());reset role;
+ set local role service_role;
+ if public.gac_apply_authorizenet_payment('98766004',invz,100,now(),'capturedPendingSettlement')<>'replacement'then raise exception 'Sold out payment not preserved';end if;reset role;set local role authenticated;
+ if not exists(select 1 from jsonb_array_elements(public.gac_my_payment_allocations())a where a->>'transaction_id'='98766004'and a->'available_numbers'='[]'::jsonb)then raise exception 'Sold out alternatives wrong';end if;
+ begin perform public.gac_owner_release_payment_numbers('98766004');raise exception 'Paid allocation released without reversal';exception when raise_exception then if position('Void or refund'in sqlerrm)=0 then raise;end if;end;reset role;
+ set local role service_role;perform public.gac_apply_authorizenet_payment('98766004',invz,0,now(),'unapproved:voided');reset role;set local role authenticated;perform public.gac_owner_release_payment_numbers('98766004');reset role;
+
+ -- Approving a timely review credits once; later void still waits for owner release.
+ set local role authenticated;perform public.gac_hold_number(g,2);z:=public.gac_begin_hosted_checkout(g,array[2],true,extensions.gen_random_uuid());reset role;select invoice into invz from gac_private.authorizenet_checkouts where id=z;
+ set local role service_role;perform public.gac_apply_authorizenet_payment('98766006',invz,100,now(),'unapproved:FDSAuthorizedPendingReview');
+ if public.gac_apply_authorizenet_payment('98766006',invz,100,now(),'capturedPendingSettlement')<>'credited'then raise exception 'Approved timely review failed';end if;
+ perform public.gac_apply_authorizenet_payment('98766006',invz,0,now(),'unapproved:voided');
+ perform public.gac_observe_gateway_transaction('98766006',invz,null,'authCaptureTransaction','voided',0);reset role;
+ if not exists(select 1 from public.gac_numbers where collection_id=g and edition_number=2)then raise exception 'Approved review void auto-released number';end if;
+ set local role authenticated;perform public.gac_owner_release_payment_numbers('98766006');reset role;
+ if exists(select 1 from public.gac_numbers where collection_id=g and edition_number=2)or not exists(select 1 from public.gac_orders where payment_reference='AUTHNET-98766006'and jsonb_array_length(purchased_numbers)=1)then raise exception 'Manual release lost receipt or retained number';end if;
+ -- Refunds before replacements complete must block fulfillment and retain reservations until owner release.
+ set local role authenticated;perform public.gac_hold_number(g,3);z:=public.gac_begin_hosted_checkout(g,array[3],true,extensions.gen_random_uuid());reset role;select invoice into invz from gac_private.authorizenet_checkouts where id=z;
+ set local role service_role;perform public.gac_apply_authorizenet_payment('98766007',invz,100,now(),'unapproved:FDSAuthorizedPendingReview');
+ perform public.gac_observe_gateway_transaction('98766008',invz,'98766007','refundTransaction','refundPendingSettlement',50);reset role;
+ if(select state from gac_private.payment_allocations where checkout_id=z)<>'manual_review'then raise exception 'Pending partial refund failed to block assignment';end if;
+ set local role service_role;
+ if public.gac_apply_authorizenet_payment('98766007',invz,100,now(),'capturedPendingSettlement')<>'review'then raise exception 'Pending refund capture fulfilled';end if;
+ perform public.gac_observe_gateway_transaction('98766008',invz,'98766007','refundTransaction','refundSettledSuccessfully',100);reset role;
+ if(select state from gac_private.payment_allocations where checkout_id=z)<>'voided'or not exists(select 1 from gac_private.payment_reservations where checkout_id=z)then raise exception 'Refund failed to await owner release';end if;
+ set local role authenticated;perform public.gac_owner_release_payment_numbers('98766007');reset role;
+ -- A collection that closes after payment requires review, without reclaiming numbers.
+ update public.gac_collections set state='closed'where id=g;
+ set local role service_role;
+ if public.gac_apply_authorizenet_payment('98766005',inv,100,now(),'capturedPendingSettlement')<>'review'then raise exception 'Closed collection late payment accepted';end if;reset role;
+ if has_function_privilege('authenticated','public.gac_choose_paid_replacements(uuid,text,integer[])','execute')or has_table_privilege('authenticated','gac_private.payment_reservations','select')then raise exception 'Protected payment internals exposed';end if;
+end $$;
+rollback;
