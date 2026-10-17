@@ -1,6 +1,6 @@
 import {CART_KEY,money,safeCart,addItem,subtotal} from './merch-cart.mjs';
-const URL='https://yuuagwxqhxiiybwjhome.supabase.co/rest/v1/gac_merch_products?select=id,name,description,price_cents,sizes,image_path,published,category,price_pending&published=eq.true&order=sort_order,created_at';
-const KEY='sb_publishable_iYZBPKMeGQlAnst_uXBsRA_V0UL4z8L';
+const URL='https://egrsgfukkramgbibqsbx.supabase.co/rest/v1/gac_merch_products?select=id,name,description,price_cents,sizes,image_path,published,category,price_pending&published=eq.true&order=sort_order,created_at';
+const KEY='sb_publishable_Vttu1L2cnuQhkrJw0V4rvA_ax4k1S7H';
 const $=id=>document.getElementById(id),el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e};
 let products=[],cart=[],loaded=false,loading=null,previousFocus;
 const dialog=$('merchCart'),items=$('merchCartItems'),status=$('merchStatus');
