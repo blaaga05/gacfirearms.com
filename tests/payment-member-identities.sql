@@ -1,0 +1,11 @@
+begin;
+select set_config('request.jwt.claim.sub',(select user_id::text from gac_private.owners limit 1),true);
+set local role authenticated;
+do $$begin if jsonb_typeof(public.gac_owner_payment_review_details())<>'array' then raise exception 'Owner review response invalid';end if;end $$;
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+set local role authenticated;
+do $$begin begin perform public.gac_owner_payment_review_details();raise exception 'Nonowner payment data exposed';exception when insufficient_privilege then null;end;end $$;
+reset role;
+do $$begin if has_function_privilege('anon','public.gac_owner_payment_review_details()','execute') then raise exception 'Anonymous payment data exposed';end if;end $$;
+rollback;
