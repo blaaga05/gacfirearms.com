@@ -1,0 +1,23 @@
+begin;
+do $$declare o uuid;g uuid:=extensions.gen_random_uuid();i uuid;inv text;outcome text;
+begin
+ select user_id into strict o from gac_private.owners limit 1;
+ if (select enabled from gac_private.checkout_settings where singleton) then raise exception 'Expected default OFF';end if;
+ insert into public.gac_collections(id,callsign,quantity,price_cents,state,release_at,is_test) values(g,'SWITCH_ROLLBACK_FIXTURE',2,100,'open',now()-interval '1 minute',false);
+ perform set_config('request.jwt.claims',json_build_object('sub',o,'role','authenticated')::text,true);perform set_config('request.jwt.claim.sub',o::text,true);set local role authenticated;
+ perform public.gac_hold_number(g,1);
+ begin perform public.gac_begin_hosted_checkout(g,array[1],true,extensions.gen_random_uuid());raise exception 'Disabled checkout bypassed';exception when sqlstate '55000' then null;end;
+ perform public.gac_owner_set_checkout_enabled(true);
+ i:=public.gac_begin_hosted_checkout(g,array[1],true,extensions.gen_random_uuid());
+ perform public.gac_owner_set_checkout_enabled(false);
+ begin perform public.gac_begin_hosted_checkout(g,array[1],true,extensions.gen_random_uuid());raise exception 'Cached checkout bypassed OFF';exception when sqlstate '55000' then null;end;
+ reset role;select invoice into inv from gac_private.authorizenet_checkouts where id=i;
+ perform set_config('request.jwt.claims','{"role":"service_role"}',true);set local role service_role;
+ outcome:=public.gac_apply_authorizenet_payment('98765777',inv,100,now(),'capturedPendingSettlement');if outcome<>'credited' then raise exception 'Switch blocked already submitted payment';end if;
+ reset role;perform set_config('request.jwt.claims',json_build_object('sub',extensions.gen_random_uuid(),'role','authenticated')::text,true);perform set_config('request.jwt.claim.sub',extensions.gen_random_uuid()::text,true);set local role authenticated;
+ begin perform public.gac_owner_set_checkout_enabled(true);raise exception 'Nonowner enabled checkout';exception when insufficient_privilege then null;end;
+ if public.gac_checkout_enabled() then raise exception 'Nonmember enabled status';end if;
+ reset role;
+ if has_table_privilege('authenticated','gac_private.checkout_settings','update') or has_function_privilege('anon','public.gac_owner_set_checkout_enabled(boolean)','execute') then raise exception 'Switch permissions exposed';end if;
+end $$;
+rollback;
