@@ -1,6 +1,6 @@
 begin;
 update gac_private.checkout_settings set enabled=true where singleton;
-do $$declare o uuid;g uuid:=extensions.gen_random_uuid();i uuid;inv text;l jsonb;
+do $$declare o uuid;g uuid:=extensions.gen_random_uuid();i uuid;inv text;l jsonb;old_order uuid;inv2 text;i2 uuid;
 begin
  select user_id into strict o from gac_private.owners limit 1;
  insert into public.gac_collections(id,callsign,quantity,price_cents,state,release_at,is_test) values(g,'RECOVERY_ROLLBACK_FIXTURE',2,100,'open',now()-interval '1 minute',false);
@@ -17,14 +17,35 @@ begin
  perform public.gac_observe_gateway_transaction('98765667',null,'98765666','refundTransaction','refundPendingSettlement',40);
  reset role;if (select payment_status from public.gac_orders where collection_id=g)<>'refund_pending' then raise exception 'Pending refund missing';end if;set local role service_role;
  perform public.gac_observe_gateway_transaction('98765667',null,'98765666','refundTransaction','refundSettledSuccessfully',40);
- reset role;if (select payment_status from public.gac_orders where collection_id=g)<>'partially_refunded' then raise exception 'Partial refund missing';end if;set local role service_role;
+ reset role;if (select count(*) from public.gac_numbers where collection_id=g)<>1 then raise exception 'Partial refund released allocation';end if;if (select payment_status from public.gac_orders where collection_id=g)<>'partially_refunded' then raise exception 'Partial refund missing';end if;set local role service_role;
  perform public.gac_observe_gateway_transaction('98765668',null,'98765666','refundTransaction','refundSettledSuccessfully',60);
  perform public.gac_observe_gateway_transaction('98765668',null,'98765666','refundTransaction','refundSettledSuccessfully',60);
  perform public.gac_checkpoint_payment_recovery((l->>'lease')::uuid,l->'cursor',(l->>'scan_from')::timestamptz,true,false);
  reset role;
  if (select payment_status from public.gac_orders where collection_id=g)<>'refunded' then raise exception 'Full refund missing';end if;
- if (select count(*) from public.gac_orders where collection_id=g)<>1 or (select count(*) from public.gac_numbers where collection_id=g)<>1 then raise exception 'Replay duplicated or refund changed original ownership';end if;
+ if (select count(*) from public.gac_orders where collection_id=g)<>1 or (select count(*) from public.gac_numbers where collection_id=g)<>0 then raise exception 'Replay duplicated or full refund did not release number';end if;
  if (select count(*) from gac_private.gateway_transactions where checkout_id=i)<>3 then raise exception 'Duplicate refund counted twice';end if;
+ if (select jsonb_array_length(purchased_numbers) from public.gac_orders where collection_id=g)<>1 or not exists(select 1 from public.gac_orders where collection_id=g and numbers_released_at is not null) then raise exception 'Released purchase receipt lost';end if;
+ select order_id into old_order from gac_private.authorizenet_checkouts where id=i;
+ perform set_config('request.jwt.claims',json_build_object('sub',o,'role','authenticated')::text,true);perform set_config('request.jwt.claim.sub',o::text,true);set local role authenticated;
+ perform public.gac_hold_number(g,1);i2:=public.gac_begin_hosted_checkout(g,array[1],true,extensions.gen_random_uuid());reset role;select invoice into inv2 from gac_private.authorizenet_checkouts where id=i2;
+ perform set_config('request.jwt.claims','{"role":"service_role"}',true);set local role service_role;
+ perform public.gac_apply_authorizenet_payment('98765669',inv2,100,now(),'capturedPendingSettlement');
+ perform public.gac_observe_gateway_transaction('98765668',null,'98765666','refundTransaction','refundSettledSuccessfully',60);
+ reset role;
+ if not exists(select 1 from public.gac_numbers where collection_id=g and edition_number=1 and order_id<>old_order) then raise exception 'Replayed refund released new purchase';end if;
+ update public.gac_collections set state='closed' where id=g;
+ set local role service_role;
+ perform public.gac_observe_gateway_transaction('98765669',inv2,null,'authCaptureTransaction','voided',0);
+ reset role;
+ if not exists(select 1 from public.gac_numbers where collection_id=g and edition_number=1) then raise exception 'Closed collection reopened number';end if;
+ update public.gac_collections set state='open' where id=g;
+ insert into gac_private.recognition_entries(collection_id,edition_number,member_id,callsign_snapshot) select collection_id,edition_number,user_id,callsign_at_purchase from public.gac_numbers where collection_id=g;
+ set local role service_role;
+ perform public.gac_observe_gateway_transaction('98765669',inv2,null,'authCaptureTransaction','voided',0);
+ reset role;
+ if not exists(select 1 from public.gac_numbers where collection_id=g and edition_number=1) then raise exception 'Recognition snapshot allocation removed';end if;
+
  perform set_config('request.jwt.claims',json_build_object('sub',o,'role','authenticated')::text,true);perform set_config('request.jwt.claim.sub',o::text,true);set local role authenticated;
  begin perform public.gac_claim_payment_recovery();raise exception 'Member ran privileged worker';exception when insufficient_privilege then null;end;
  reset role;
