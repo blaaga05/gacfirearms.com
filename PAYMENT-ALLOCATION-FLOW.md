@@ -16,10 +16,10 @@ Still required before launch: hands-on sandbox checks of the revised late-paymen
 
 ## Pending hands-on payment checklist
 
-- [ ] Late payment: original numbers still available; automatic assignment without warning.
+- [x] Late payment: original numbers still available; automatic assignment verified after merchant review approval in sandbox on October 17. Direct approval without fraud review remains to be checked.
 - [ ] Late payment: one original number unavailable; choose a replacement without paying again.
-- [ ] Timely merchant-review payment: numbers stay protected past the timer and remain off the wheel until approval.
-- [ ] Protected payment reversed: numbers remain protected until the owner clicks Release.
+- [x] Timely merchant-review payment: protected past expiry, off wheel until approval, then credited automatically (sandbox October 17).
+- [x] Protected payment reversed: void recorded, number retained until owner Release; release removed number while preserving receipt (sandbox October 17).
 - [ ] Actual settled full refund: reconcile financial status and preserve purchase history.
 - [ ] **Partial refund for a multi-number purchase:** purchase several numbers, make one unavailable after hold expiry, and refund only the missing number when a replacement is not wanted or available. Verify the correct refund amount, keep the valid numbers with the purchaser, and preserve the original receipt plus the partial-refund record. Verify the refunded number is not credited and that retrying a webhook cannot remove the other numbers or duplicate fulfillment. Confirm pending versus settled refund status and both member and owner displays.
 
