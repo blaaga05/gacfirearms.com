@@ -6,6 +6,12 @@ export async function observeTransaction(env,t,fetcher=fetch){
  const tx=String(t?.transId||'');if(!/^\d{1,30}$/.test(tx))throw Error('Invalid transaction details');
  const db=backend(env,fetcher),invoice=t.order?.invoiceNumber,reference=t.refTransId?String(t.refTransId):null;
  const amount=cents(t.settleAmount??t.authAmount??0),status=String(t.transactionStatus||'unknown'),kind=String(t.transactionType||'unknown');let outcome='ignored';
+ if(/^GAM[a-f\d]{17}$/.test(invoice||'')||kind==='refundTransaction'&&!invoicePattern.test(invoice||'')){
+  if(kind==='refundTransaction'){const order=await db('gac_merch_refund_order',{p_reference:reference,p_invoice:invoice||null});if(!order){await db('gac_observe_gateway_transaction',{p_transaction:tx,p_invoice:invoicePattern.test(invoice||'')?invoice:null,p_reference:reference,p_kind:kind,p_status:status,p_amount_cents:amount});return {outcome:'ignored',terminal:status==='refundSettledSuccessfully'};}}
+  const shipping={};for(const k of ['firstName','lastName','company','address','city','state','zip','country'])if(typeof t.shipTo?.[k]==='string')shipping[k]=t.shipTo[k].slice(0,200);
+  const result=await db('gac_apply_merch_gateway',{p_transaction:tx,p_invoice:invoice||null,p_reference:reference,p_kind:kind,p_status:status,p_amount_cents:amount,p_submitted:t.submitTimeUTC||null,p_approved:String(t.responseCode)==='1'&&!t.splitTenderId,p_email:typeof t.customer?.email==='string'?t.customer.email.slice(0,254):null,p_shipping:shipping});
+  if(result!=='unrelated')return {outcome:result,terminal:['settledSuccessfully','voided','declined','expired','refundSettledSuccessfully'].includes(status)};
+ }
  if(invoicePattern.test(invoice||'')&&kind==='authCaptureTransaction'){
   const approved=String(t.responseCode)==='1'&&!t.splitTenderId;
   outcome=await db('gac_apply_authorizenet_payment',{p_transaction:tx,p_invoice:invoice,p_amount_cents:amount,p_paid_at:t.submitTimeUTC,p_status:approved?status:'unapproved:'+status,p_currency:'usd'});
