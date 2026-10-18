@@ -1,0 +1,27 @@
+begin;
+update gac_private.checkout_settings set enabled=true where singleton;
+do $$declare m uuid:=extensions.gen_random_uuid();g uuid:=extensions.gen_random_uuid();meta jsonb;i uuid;req uuid:=extensions.gen_random_uuid();
+begin
+ select jsonb_build_object('full_name','Synthetic Member Checkout','phone','5555550199','age_confirmed',true,'law_agreed',true,'accuracy_confirmed',true,'recognition_acknowledged',true,'requirements_version',version,'minimum_age',minimum_age,'callsign','MEM_'||left(replace(m::text,'-',''),10))into meta from public.gac_requirements where singleton;
+ insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data)values(m,'member-'||m||'@example.invalid',now(),meta);
+ insert into public.gac_collections(id,callsign,quantity,price_cents,state,release_at,is_test)values(g,'MEMBER_CHECKOUT_ROLLBACK',5,123,'open',now()-interval '1 day',false);
+ perform set_config('request.jwt.claim.sub',m::text,true);perform set_config('request.jwt.claims',json_build_object('sub',m,'role','authenticated')::text,true);set local role authenticated;
+ if public.gac_is_owner()then raise exception 'Fixture must be ordinary member';end if;
+ perform public.gac_hold_number(g,1);perform public.gac_hold_number(g,2);
+ i:=public.gac_begin_hosted_checkout(g,array[2,1],true,req);
+ if i<>public.gac_begin_hosted_checkout(g,array[1,2],true,req)then raise exception 'Member retry duplicated checkout';end if;
+ begin perform public.gac_owner_set_checkout_enabled(false);raise exception 'Member changed owner switch';exception when insufficient_privilege then null;end;
+ reset role;
+ if not exists(select 1 from gac_private.authorizenet_checkouts where id=i and user_id=m and amount_cents=246)then raise exception 'Member or total mismatch';end if;
+ if exists(select 1 from public.gac_orders where collection_id=g)then raise exception 'Unpaid order fulfilled';end if;
+ update gac_private.checkout_settings set enabled=false where singleton;
+ set local role authenticated;
+ begin perform public.gac_begin_hosted_checkout(g,array[1,2],true,req);raise exception 'Disabled checkout accepted';exception when sqlstate '55000' then null;end;
+ reset role;
+ update gac_private.checkout_settings set enabled=true where singleton;update public.gac_profiles set status='suspended' where user_id=m;
+ set local role authenticated;
+ begin perform public.gac_begin_hosted_checkout(g,array[1,2],true,req);raise exception 'Suspended member accepted';exception when insufficient_privilege then null;end;
+ reset role;
+ if has_function_privilege('anon','public.gac_begin_hosted_checkout(uuid,integer[],boolean,uuid)','execute')then raise exception 'Anonymous checkout exposed';end if;
+end $$;
+rollback;
