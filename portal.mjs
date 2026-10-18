@@ -1,5 +1,5 @@
 import {mountMerchAdmin} from './merch-admin.mjs?v=20261017-stock';
-import {mountHostedCheckout} from './hosted-checkout.mjs?v=20261017-allocation-flow';
+import {mountHostedCheckout} from './hosted-checkout.mjs?v=20261018-pending-refunds';
 import {mountManualAssignment} from './manual-assignment.mjs?v=20261017-selection-controls';
 import {mountAdminAnnouncements} from './admin-announcements.mjs?v=20261015-announcements';
 import {mountOwnerPresence} from './owner-presence.mjs?v=20261015-owner-online';

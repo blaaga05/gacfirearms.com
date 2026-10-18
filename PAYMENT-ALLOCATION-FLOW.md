@@ -5,7 +5,7 @@ Checkout remains switched off. This release does not remove the owner testing or
 - Unpaid holds expire at their original deadline. An opened checkout is briefly marked Checking while the gateway is checked; reporting failures keep it protected for retry.
 - A verified late capture receives original numbers automatically if still available. Missing numbers can be replaced without another charge, while available originals remain reserved.
 - Timely payments held for merchant approval retain numbers beyond the deadline, off the wheel. Approval fulfills once. Reversal waits for the owner to click Release protected numbers.
-- Partial or pending refunds require owner review. A verified full refund permits manual release of protected allocations. Closed or recognized history is preserved.
+- Partial or pending refunds require owner review. Verified full pending or settled refunds permit manual release of protected allocations. Closed or recognized history is preserved.
 - Server-side signature checks, transaction reporting, amount and identity matching, row locks, and unique payment references remain required. Returning from checkout never fulfills a purchase.
 
 ## Validation and remaining checks
@@ -20,7 +20,7 @@ Still required before launch: hands-on sandbox checks of the revised late-paymen
 - [ ] Late payment: one original number unavailable; choose a replacement without paying again.
 - [x] Timely merchant-review payment: protected past expiry, off wheel until approval, then credited automatically (sandbox October 17).
 - [x] Protected payment reversed: void recorded, number retained until owner Release; release removed number while preserving receipt (sandbox October 17).
-- [ ] Actual settled full refund: reconcile financial status and preserve purchase history.
+- [x] Full refund submitted and verified pending; open-collection number released automatically with receipt preserved. Final refund settlement remains pending.
 - [ ] **Partial refund for a multi-number purchase:** purchase several numbers, make one unavailable after hold expiry, and refund only the missing number when a replacement is not wanted or available. Verify the correct refund amount, keep the valid numbers with the purchaser, and preserve the original receipt plus the partial-refund record. Verify the refunded number is not credited and that retrying a webhook cannot remove the other numbers or duplicate fulfillment. Confirm pending versus settled refund status and both member and owner displays.
 
-Partial refunds currently require owner review; per-number completion after a partial refund must be verified and any missing support implemented before this checklist item can pass. No refund is initiated by this checklist.
+Partial refunds use the owner Refunds & number release controls. The gateway request is verified pending; the owner selection is the next hands-on check. Final settlement is not yet verified.
