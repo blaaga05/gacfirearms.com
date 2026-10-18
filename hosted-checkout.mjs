@@ -1,7 +1,7 @@
 import {mountRefundRelease} from './refund-release.mjs?v=20261018-pending-refunds';
 import {appendPaymentIdentity,paymentActivityPage} from './payment-member-identity.mjs?v=20261017-compact';
 import {mountHeldPaymentNotice} from './payment-held-notice.mjs?v=20261017-new-allocation';
-import {mountCheckoutSettings} from './checkout-settings.mjs?v=20261017-compact';
+import {mountCheckoutSettings} from './checkout-settings.mjs?v=20261018-separate-controls';
 export function mountHostedCheckout({client,mount,action,status,refresh,onCheckoutChanged=()=>{},openMember=()=>{},messageMember=()=>{}}){
  const el=(tag,text)=>{const e=document.createElement(tag);e.textContent=text;return e};let owner=false,member=null,epoch=0,checking=false,tracked=null,request=null;
  const note=el('div','');note.className='card';note.hidden=true;note.setAttribute('aria-live','polite');const message=el('p',''),check=el('button','Refresh payment status');check.type='button';check.className='secondary';note.append(message,check);document.getElementById('purchaseNumbers').parentElement.append(note);
