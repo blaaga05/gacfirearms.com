@@ -1,4 +1,4 @@
-import {mountMerchCheckout} from './merch-checkout.mjs?v=20261018-merch-checkout';
+import {mountMerchCheckout} from './merch-checkout.mjs?v=20261018-merch-return-fix';
 import {stockFor,stockLabel} from './merch-inventory.mjs?v=20261017-stock';
 import {CART_KEY,money,safeCart,addItem,subtotal} from './merch-cart.mjs?v=20261017-stock';
 const URL='https://egrsgfukkramgbibqsbx.supabase.co/rest/v1/gac_merch_products?select=id,name,description,price_cents,sizes,image_path,published,category,price_pending,stock:gac_merch_stock(size,quantity)&published=eq.true&order=sort_order,created_at';
