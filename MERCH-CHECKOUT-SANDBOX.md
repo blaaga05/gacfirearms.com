@@ -21,7 +21,7 @@ Sandbox opening counts: S 10, M 25, other shirt sizes 0, handguard 5. Shirt $30;
 
 ## Pending hands-on checks
 
-- [ ] Guest successful hosted checkout, address capture, return receipt and stock deduction.
+- [x] Guest successful hosted checkout, email/address capture, return receipt and stock deduction (Small 10 → 9, October 17 sandbox test).
 - [ ] Decline/retry, cancel/abandon and verified expiry.
 - [ ] Two browsers competing for stock and repeated return/status requests.
 - [ ] Fraud review/approval/void.
