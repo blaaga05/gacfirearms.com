@@ -43,6 +43,7 @@ export function mountFirearmAdmin({client,addAdmin,action,status}){
       details.append(select,save);row.append(summary,details);host.append(row);
     }
   }
+  $(panel,"firearmEdit").addEventListener("invalid",event=>{if(event.target.id==="firearmPrice")$(panel,"firearmEditStatus").textContent="Enter the website price before saving the listing.";},true);
   $(panel,"firearmPick").onchange=()=>edit(selected());
   $(panel,"firearmPhoto").onchange=()=>{const file=$(panel,"firearmPhoto").files?.[0]||null;pendingPhoto=file;removePhoto=false;if(file)photoPreview(URL.createObjectURL(file));else photoPreview(selected()?.photo_path?client.storage.from("gac-product-images").getPublicUrl(selected().photo_path).data.publicUrl:"");};
   $(panel,"firearmPhotoRemove").onclick=()=>{pendingPhoto=null;removePhoto=true;$(panel,"firearmPhoto").value="";photoPreview("");};
