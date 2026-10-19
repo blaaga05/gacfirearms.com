@@ -28,8 +28,21 @@ alter table public.gac_firearm_inventory enable row level security;
 revoke all on public.gac_firearm_inventory from anon, authenticated;
 grant all on public.gac_firearm_inventory to service_role;
 
+drop policy if exists gac_firearm_public_catalog_read on public.gac_firearm_inventory;
+create policy gac_firearm_public_catalog_read
+  on public.gac_firearm_inventory
+  for select
+  to anon, authenticated
+  using (published and is_available and price_cents is not null);
+
+grant select (
+  fastbound_item_id, manufacturer, model, caliber, firearm_type, condition,
+  barrel_length, overall_length, price_cents, public_description,
+  published, is_available
+) on public.gac_firearm_inventory to anon, authenticated;
+
 create or replace view public.gac_firearm_catalog
-with (security_barrier = true)
+with (security_barrier = true, security_invoker = true)
 as
 select fastbound_item_id as id, manufacturer, model, caliber, firearm_type, condition,
        barrel_length, overall_length, price_cents, public_description
