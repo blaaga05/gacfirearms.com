@@ -12,6 +12,7 @@ function render(items){
     const card=make("article");card.className="card";
     const maker=make("div","GASSETT ARMS COMPANY");maker.className="eyebrow";
     const name=make("h2",[item.manufacturer,item.model].filter(Boolean).join(" "));
+    if(item.photo_path){const image=make("img");image.src=SUPABASE_URL+"/storage/v1/object/public/gac-product-images/"+item.photo_path.split("/").map(encodeURIComponent).join("/");image.alt=[item.manufacturer,item.model].filter(Boolean).join(" ")+" firearm";image.loading="lazy";image.decoding="async";image.style.cssText="width:100%;height:220px;object-fit:contain;background:#080d09;border:1px solid #303a33;margin:0 0 14px";card.append(image);}
     const meta=make("p",[item.firearm_type,item.caliber,item.condition].filter(Boolean).join(" · "));meta.className="meta";
     const price=make("div",money(item.price_cents));price.className="price";
     const description=make("p",item.public_description||"Contact GAC with questions about this firearm.");
@@ -21,7 +22,7 @@ function render(items){
 }
 async function load(){
   try{
-    const response=await fetch(SUPABASE_URL+"/rest/v1/gac_firearm_catalog?select=id,manufacturer,model,caliber,firearm_type,condition,price_cents,public_description&order=manufacturer.asc,model.asc",{
+    const response=await fetch(SUPABASE_URL+"/rest/v1/gac_firearm_catalog?select=id,manufacturer,model,caliber,firearm_type,condition,price_cents,public_description,photo_path&order=manufacturer.asc,model.asc",{
       headers:{apikey:KEY,Accept:"application/json"},cache:"no-store",signal:AbortSignal.timeout(12000)
     });
     if(!response.ok)throw new Error("Catalog is temporarily unavailable.");
