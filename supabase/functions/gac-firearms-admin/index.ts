@@ -2,13 +2,14 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const ORIGIN_DEFAULT = "https://gacfirearms.com";
 const PREVIEW_ORIGIN = "https://feat-fastbound-firearm-catal.gacfirearms-com.pages.dev";
+const PHOTO_PREVIEW_ORIGIN = "https://feat-firearm-listing-photos.gacfirearms-com.pages.dev";
 const TABLE = "gac_firearm_inventory";
 const columns = "fastbound_item_id,item_number,serial_number,manufacturer,model,caliber,firearm_type,condition,barrel_length,overall_length,manufacturer_part_number,upc,sku,fastbound_status_id,is_available,price_cents,public_description,photo_path,published,synced_at";
 
 Deno.serve(async (req: Request) => {
   const requestOrigin = req.headers.get("origin") || "";
   const configuredOrigin = Deno.env.get("GAC_SITE_ORIGIN") || ORIGIN_DEFAULT;
-  const allowedOrigins = new Set([ORIGIN_DEFAULT, configuredOrigin, PREVIEW_ORIGIN]);
+  const allowedOrigins = new Set([ORIGIN_DEFAULT, configuredOrigin, PREVIEW_ORIGIN, PHOTO_PREVIEW_ORIGIN]);
   const origin = requestOrigin || configuredOrigin;
   const headers = {
     "Content-Type": "application/json",
