@@ -6,7 +6,7 @@ import {mountManualAssignment} from './manual-assignment.mjs?v=20261017-selectio
 import {mountAdminAnnouncements} from './admin-announcements.mjs?v=20261015-announcements';
 import {mountOwnerPresence} from './owner-presence.mjs?v=20261015-owner-online';
 import {mountSharedRecognition,personalRecognitionReady} from './shared-recognition.mjs?v=20261018-number-first';
-import {mountNumberReservations,collectionIsOpen} from './number-reservations.mjs?v=20261017-allocation-flow';
+import {mountNumberReservations,collectionIsOpen} from './number-reservations.mjs?v=20261019-live-checkout-copy';
 import {wheelSequence} from './wheel-sequence.mjs?v=20261011-multi-spin';
 import {mountMessages} from './messages.mjs?v=20261017-member-identities';
 export function mountPortal({client,api,status,action,refresh}){
