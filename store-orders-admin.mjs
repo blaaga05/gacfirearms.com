@@ -5,7 +5,7 @@ const CARRIERS=["","USPS","UPS","FedEx","DHL","Other"];
 const field=(parent,labelText,control)=>{const wrap=document.createElement("label");wrap.textContent=labelText;wrap.append(control);parent.append(wrap);return control};
 
 export function mountStoreOrdersAdmin({client,addAdmin,action,status}){
- const panel=addAdmin("storeOrders","Store orders",'<div class="card"><div class="top"><div><h2>Main-site merchandise orders</h2><p>Update fulfillment status and add carrier and tracking details. Digital-logo purchases and firearm order requests remain in their own sections.</p></div><button id="storeOrdersRefresh" type="button" class="secondary">Refresh orders</button></div><div id="storeOrdersStatus" role="status" aria-live="polite"></div><div id="storeOrdersList"></div></div>');
+ const panel=addAdmin("storeOrders","Order oversight",'<div class="card"><div class="top"><div><h2>Order oversight · merchandise</h2><p>Update fulfillment status and add carrier and tracking details. Digital-logo purchases and firearm order requests remain in their own sections.</p></div><button id="storeOrdersRefresh" type="button" class="secondary">Refresh orders</button></div><div id="storeOrdersStatus" role="status" aria-live="polite"></div><div id="storeOrdersList"></div></div>');
  const $=id=>panel.querySelector("#"+id);
  let owner=false,orders=[];
  async function load(){
