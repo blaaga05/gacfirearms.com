@@ -1,8 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const ORIGIN_DEFAULT = "https://gacfirearms.com";
+const PREVIEW_ORIGIN = "https://feat-fastbound-firearm-catal.gacfirearms-com.pages.dev";
 Deno.serve(async (req: Request) => {
-  const origin = Deno.env.get("GAC_SITE_ORIGIN") || ORIGIN_DEFAULT;
+  const requestOrigin = req.headers.get("origin") || "";
+  const configuredOrigin = Deno.env.get("GAC_SITE_ORIGIN") || ORIGIN_DEFAULT;
+  const allowedOrigins = new Set([ORIGIN_DEFAULT, configuredOrigin, PREVIEW_ORIGIN]);
+  const origin = requestOrigin || configuredOrigin;
   const headers = {
     "Content-Type": "application/json",
     "Cache-Control": "no-store",
@@ -13,7 +17,7 @@ Deno.serve(async (req: Request) => {
   };
   const reply = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers });
-  if (req.headers.get("origin") && req.headers.get("origin") !== origin) return reply({ error: "Origin not allowed" }, 403);
+  if (requestOrigin && !allowedOrigins.has(requestOrigin)) return reply({ error: "Origin not allowed" }, 403);
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers });
   if (req.method !== "POST") return reply({ error: "POST required" }, 405);
 
