@@ -12,6 +12,11 @@ const [schema, storefront, orderFunction, adminFunction] = await Promise.all([
 test("public catalog view contains no serial, private table access stays service-role only", () => {
   assert.match(schema, /revoke all on public\.gac_firearm_inventory from anon, authenticated/i);
   assert.match(schema, /grant all on public\.gac_firearm_inventory to service_role/i);
+  const photoMigration = await readFile(new URL("../database/firearm-listing-photos.sql", import.meta.url), "utf8");
+  assert.match(photoMigration, /add column if not exists photo_path/i);
+  assert.match(photoMigration, /security_invoker/i);
+  assert.match(photoMigration, /photo_path/i);
+  assert.match(storefront, /item\\.photo_path/);
   const view = schema.split(/create or replace view public\.gac_firearm_catalog/i)[1].split(/create table if not exists public\.gac_firearm_order_requests/i)[0];
   assert.doesNotMatch(view, /serial_number|item_number|upc|sku|cost/i);
   assert.match(view, /where published and is_available and price_cents is not null/i);
