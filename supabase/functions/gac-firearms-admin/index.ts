@@ -3,7 +3,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 const ORIGIN_DEFAULT = "https://gacfirearms.com";
 const PREVIEW_ORIGIN = "https://feat-fastbound-firearm-catal.gacfirearms-com.pages.dev";
 const TABLE = "gac_firearm_inventory";
-const columns = "fastbound_item_id,item_number,serial_number,manufacturer,model,caliber,firearm_type,condition,barrel_length,overall_length,manufacturer_part_number,upc,sku,fastbound_status_id,is_available,price_cents,public_description,published,synced_at";
+const columns = "fastbound_item_id,item_number,serial_number,manufacturer,model,caliber,firearm_type,condition,barrel_length,overall_length,manufacturer_part_number,upc,sku,fastbound_status_id,is_available,price_cents,public_description,photo_path,published,synced_at";
 
 Deno.serve(async (req: Request) => {
   const requestOrigin = req.headers.get("origin") || "";
@@ -160,9 +160,17 @@ Deno.serve(async (req: Request) => {
         patch.price_cents = body.priceCents;
       }
       if (typeof body.published === "boolean") patch.published = body.published;
+      if ("photoPath" in body) {
+        if (body.photoPath !== null && (typeof body.photoPath !== "string" ||
+            !body.photoPath.startsWith("firearms/" + body.itemId + "/") ||
+            !/^firearms\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp)$/i.test(body.photoPath))) {
+          return reply({ error: "Invalid listing photo" }, 400);
+        }
+        patch.photo_path = body.photoPath;
+      }
       if (patch.published === true && (patch.price_cents === null || patch.price_cents === undefined)) {
         const current = await db(TABLE + "?select=price_cents&fastbound_item_id=eq." + encodeURIComponent(body.itemId));
-        if (!current[0]?.price_cents) return reply({ error: "Set a price before publishing" }, 400);
+        if (!current[0]?.price_cents && !patch.price_cents) return reply({ error: "Set a price before publishing" }, 400);
       }
       if (!Object.keys(patch).length) return reply({ error: "Nothing to update" }, 400);
       patch.updated_at = new Date().toISOString();
