@@ -1,6 +1,6 @@
 import {mountMerchAdmin} from './merch-admin.mjs?v=20261017-stock';
 import {mountFirearmAdmin} from './firearm-admin.mjs?v=20261019-5';
-import {mountStoreOrdersAdmin} from './store-orders-admin.mjs?v=20261019-orders-1';
+import {mountStoreOrdersAdmin} from './store-orders-admin.mjs?v=20261019-orders-2';
 import {mountHostedCheckout} from './hosted-checkout.mjs?v=20261018-member-launch';
 import {mountManualAssignment} from './manual-assignment.mjs?v=20261017-selection-controls';
 import {mountAdminAnnouncements} from './admin-announcements.mjs?v=20261015-announcements';
