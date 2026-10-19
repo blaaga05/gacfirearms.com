@@ -28,16 +28,17 @@ create table public.gac_store_orders (
 
 create index gac_store_orders_user_created_idx on public.gac_store_orders (user_id, created_at desc);
 create index gac_store_orders_status_created_idx on public.gac_store_orders (fulfillment_status, created_at desc);
+create index gac_store_orders_updated_by_idx on public.gac_store_orders (updated_by);
 
 alter table public.gac_store_orders enable row level security;
 grant select, update on public.gac_store_orders to authenticated;
 
-create policy gac_store_orders_customer_read
+create policy gac_store_orders_read
   on public.gac_store_orders for select to authenticated
-  using (user_id = (select auth.uid()) and (select public.gac_is_member()));
-create policy gac_store_orders_owner_read
-  on public.gac_store_orders for select to authenticated
-  using ((select public.gac_is_owner()));
+  using (
+    (user_id = (select auth.uid()) and (select public.gac_is_member()))
+    or (select public.gac_is_owner())
+  );
 create policy gac_store_orders_owner_update
   on public.gac_store_orders for update to authenticated
   using ((select public.gac_is_owner()))
