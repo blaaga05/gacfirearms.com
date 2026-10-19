@@ -1,11 +1,15 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const ORIGIN_DEFAULT = "https://gacfirearms.com";
+const PREVIEW_ORIGIN = "https://feat-fastbound-firearm-catal.gacfirearms-com.pages.dev";
 const TABLE = "gac_firearm_inventory";
 const columns = "fastbound_item_id,item_number,serial_number,manufacturer,model,caliber,firearm_type,condition,barrel_length,overall_length,manufacturer_part_number,upc,sku,fastbound_status_id,is_available,price_cents,public_description,published,synced_at";
 
 Deno.serve(async (req: Request) => {
-  const origin = Deno.env.get("GAC_SITE_ORIGIN") || ORIGIN_DEFAULT;
+  const requestOrigin = req.headers.get("origin") || "";
+  const configuredOrigin = Deno.env.get("GAC_SITE_ORIGIN") || ORIGIN_DEFAULT;
+  const allowedOrigins = new Set([ORIGIN_DEFAULT, configuredOrigin, PREVIEW_ORIGIN]);
+  const origin = requestOrigin || configuredOrigin;
   const headers = {
     "Content-Type": "application/json",
     "Cache-Control": "no-store",
@@ -17,7 +21,7 @@ Deno.serve(async (req: Request) => {
   const reply = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers });
 
-  if (req.headers.get("origin") && req.headers.get("origin") !== origin) {
+  if (requestOrigin && !allowedOrigins.has(requestOrigin)) {
     return reply({ error: "Origin not allowed" }, 403);
   }
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers });
