@@ -70,5 +70,5 @@ client.from('gac_site_text').select('copy_key,text_value').then(({data,error})=>
 $('guest').hidden=false;window.gacAccountReady=true;
 
 try{requirements=await api.requirements();$('ageText').textContent='I confirm I am at least '+requirements.minimum_age+' years old.';$('lawText').textContent=requirements.law_statement;$('recognitionAckText').textContent=requirements.recognition_statement;signupValid();await refresh()}catch(e){$('guest').hidden=false;status('Unable to connect to the account service. Please reload and try again. '+e.message)}
-}catch(e){window.gacAccountReady=false;window.gacAccountFallback();document.getElementById('status').textContent='Sign-in could not load: '+(e.message||'Connection interrupted')+'. Use Reload account page to retry.';}
+}catch(e){console.error('GAC account module failed to load',e);window.gacAccountReady=false;window.gacAccountFallback();document.getElementById('status').textContent='Sign-in could not load: '+(e.message||'Connection interrupted')+'. Use Reload account page to retry.';}
 </script></html>
