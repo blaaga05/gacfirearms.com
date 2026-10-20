@@ -15,4 +15,10 @@ The firearm flow is deliberately separate from the apparel and accessory cart. I
 
 Customers choose a firearm and submit their contact information, residence state, and preferred transfer arrangement. If using another FFL, they provide that licensee’s business and contact details. Requests appear under **Firearm order requests** in the owner panel. A request is not a reservation, sale, or payment. GAC must contact the customer to verify current availability, price, the transfer path, and applicable requirements before taking payment or proceeding in FastBound.
 
+## Firearm shipping and tax values
+
+The **Firearm checkout pricing** section in **Admin → Firearm inventory** stores a flat shipping amount and editable tax rates by state and county/local jurisdiction. It is an owner-only setup panel. It does not calculate a customer total, accept payment, reserve inventory, or change the member merchandise checkout. The values are not used until a separately reviewed firearm checkout is built and enabled.
+
+The initial database row is safe and inactive: shipping is $0 and the destination-rate list is empty. Confirm the shipping service/insurance cost and applicable tax treatment with GAC’s tax preparer or the state tax agency before entering rates. Use the per-destination label to record where the rate applies; update rates as jurisdictions change. The option to tax shipping is stored separately for each destination so the rule can be set after confirmation.
+
 The public catalog view exposes listing fields only; it does not include a serial number, inventory notes, acquisition details, or customer records. Merch and accessory carts remain separate and have no checkout connection to this flow.
