@@ -17,7 +17,8 @@ function render(items){
     const price=make("div",money(item.price_cents));price.className="price";
     const description=make("p",item.public_description||"Contact GAC with questions about this firearm.");
     const button=make("button","Request order review");button.type="button";button.onclick=()=>openRequest(item);
-    card.append(maker,name,meta,price,description,button);products.append(card);
+    const checkout=make("button","Firearm checkout coming soon");checkout.type="button";checkout.className="secondary";checkout.disabled=true;checkout.setAttribute("aria-label","Firearm checkout coming soon for "+[item.manufacturer,item.model].filter(Boolean).join(" "));
+    card.append(maker,name,meta,price,description,button,checkout);products.append(card);
   }
 }
 async function load(){
