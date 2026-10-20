@@ -17,8 +17,14 @@ Customers choose a firearm and submit their contact information, residence state
 
 ## Firearm shipping and tax values
 
-The **Firearm checkout pricing** section in **Admin → Firearm inventory** stores a flat shipping amount and editable tax rates by state and county/local jurisdiction. It is an owner-only setup panel. It does not calculate a customer total, accept payment, reserve inventory, or change the member merchandise checkout. The values are not used until a separately reviewed firearm checkout is built and enabled.
+The **Firearm checkout pricing** section in **Admin → Firearm inventory** stores a flat shipping amount and editable tax rates by state and county/local jurisdiction. It also includes an owner-only TaxCloud estimate lookup using a receiving FFL's full address. The estimate sends the selected firearm price, shipping amount, GAC origin, and destination to TaxCloud. It does not calculate a customer total, accept payment, reserve inventory, or change the member merchandise checkout. The values are not used until a separately reviewed firearm checkout is built and enabled.
 
-The initial database row is safe and inactive: shipping is $0 and the destination-rate list is empty. Confirm the shipping service/insurance cost and applicable tax treatment with GAC’s tax preparer or the state tax agency before entering rates. Use the per-destination label to record where the rate applies; update rates as jurisdictions change. The option to tax shipping is stored separately for each destination so the rule can be set after confirmation.
+To enable the estimate lookup, configure the GAC business profile and active nexus states in TaxCloud, create a Custom API connection, and add these secrets to the Supabase Edge Function environment (never to website JavaScript):
+
+- `TAXCLOUD_API_KEY` — TaxCloud API key.
+- `TAXCLOUD_CONNECTION_ID` — UUID for the TaxCloud Custom API connection.
+- `GAC_TAX_ORIGIN_JSON` — GAC's registered ship-from address as one JSON object, for example `{"line1":"<business street>","city":"<city>","state":"GA","zip":"<ZIP>"}`. Use the correct origin address confirmed for GAC; do not copy the example literally.
+
+The lookup requires a full street, city, state, and ZIP for the receiving FFL. TaxCloud requires its merchant profile, origin location, and nexus states to be configured; an unconfigured state may return zero tax. The initial database row remains inactive: shipping is $0 and the manual destination-rate list is empty. Confirm product taxability, nexus, shipping treatment, and the FFL delivery location with GAC's tax preparer before using any estimate to collect money. TaxCloud estimates are not yet connected to customer checkout.
 
 The public catalog view exposes listing fields only; it does not include a serial number, inventory notes, acquisition details, or customer records. Merch and accessory carts remain separate and have no checkout connection to this flow.
