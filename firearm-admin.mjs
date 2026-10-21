@@ -101,6 +101,6 @@ export function mountFirearmAdmin({client,addAdmin,action,status,onNewOrders=()=
   $(panel,"firearmOrdersRefresh").onclick=()=>action(loadOrders);
   $(panel,"firearmTaxAdd").onclick=()=>addTaxRow();
   $(panel,"firearmPricingSave").onclick=()=>action(savePricing);
-  return {async sync(isOwner){if(owner!==isOwner){epoch++;owner=isOwner;}if(!owner)return;await loadItems();await loadOrders();try{await loadPricing()}catch(error){$(panel,"firearmPricingStatus").textContent=error.message||"Pricing settings could not be loaded.";}},refreshOrders:loadOrders,
+  return {async sync(isOwner){if(owner!==isOwner){epoch++;owner=isOwner;}if(!owner)return;await loadItems();await loadOrders();try{await loadPricing()}catch(error){$(panel,"firearmPricingStatus").textContent=error.message||"Pricing settings could not be loaded.";}},async refreshIndicator(){if(!owner)return;const version=epoch,data=await read("orders");if(!owner||version!==epoch)return;onNewOrders((data.orders||[]).filter(order=>order.review_status==="pending_review").length);},
     clear(){epoch++;owner=false;onNewOrders(0);items=[];orders=[];pendingPhoto=null;removePhoto=false;$(panel,"firearmPick").replaceChildren();$(panel,"firearmOrders").replaceChildren();$(panel,"firearmTaxRates").replaceChildren();$(panel,"firearmSyncStatus").textContent="";$(panel,"firearmPricingStatus").textContent="";photoPreview("");edit(null);}};
 }
