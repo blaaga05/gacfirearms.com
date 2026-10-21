@@ -4,14 +4,14 @@ export function mountCheckoutSettings({client,mount,action,status,onChanged=()=>
  const el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
  const root=el('section');root.hidden=true;root.className='payment-controls';
  root.append(el('h3','Checkout controls'));
- const grid=el('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:16px';
- function control(title){const box=el('section'),state=el('p'),toggle=el('button');box.style.cssText='padding:16px;border:1px solid #405140;border-radius:10px';state.setAttribute('role','status');toggle.type='button';toggle.setAttribute('role','switch');toggle.disabled=true;box.append(el('h4',title),state,toggle);grid.append(box);return{state,toggle};}
+ const grid=el('div');grid.style.cssText='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%;min-width:0';
+ function control(title){const box=el('section'),state=el('p'),toggle=el('button');box.style.cssText='box-sizing:border-box;min-width:0;width:100%;padding:12px;border:1px solid #405140;border-radius:10px';state.setAttribute('role','status');toggle.type='button';toggle.setAttribute('role','switch');toggle.disabled=true;box.append(el('h4',title),state,toggle);grid.append(box);return{state,toggle};}
  const memberControl=control('Member checkout'),merchControl=control('Public merchandise checkout');
  root.append(grid);mount.prepend(root);
  function paint(control,on,ready=true){control.state.textContent=ready?(on?'ENABLED':'DISABLED'):'DISABLED · Live merchandise checkout is not ready';
  control.toggle.textContent=ready?(on?'Enabled · Click to disable':'Disabled · Click to enable'):'Unavailable until merchandise testing is complete';
  control.toggle.setAttribute('aria-checked',String(on&&ready));control.toggle.disabled=!owner||loading||!ready;
- control.toggle.style.cssText='background:'+(on&&ready?'#245c3b':'#732e32')+';color:#fff;border:1px solid '+(on&&ready?'#65b582':'#d28b8e')+';border-radius:6px;padding:6px 9px;min-height:34px;max-width:100%;white-space:normal;opacity:'+(ready?'1':'.7');
+ control.toggle.style.cssText='background:'+(on&&ready?'#245c3b':'#732e32')+';color:#fff;border:1px solid '+(on&&ready?'#65b582':'#d28b8e')+';border-radius:6px;padding:6px 9px;min-height:34px;width:100%;max-width:100%;white-space:normal;opacity:'+(ready?'1':'.7');
  }
  function render(){root.hidden=!owner;paint(memberControl,enabled);paint(merchControl,merchEnabled,merchReady);onChanged(enabled);}
  async function reload(){if(!member||loading)return;loading=true;const v=epoch;try{
