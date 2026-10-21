@@ -67,7 +67,7 @@ for(const id of ['name','callsign','email','phone','password','confirm']){const 
 $('callsign').parentElement.querySelector('p.small')?.remove();signupValid();
 $('signup').addEventListener('change',signupValid);
 
-client.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY')recovery=true;if(event==='SIGNED_OUT'){recovery=false;$('newPass').value='';$('newConfirm').value='';$('newPassword').hidden=true}if(['PASSWORD_RECOVERY','SIGNED_IN','SIGNED_OUT','TOKEN_REFRESHED'].includes(event))setTimeout(refresh,0)});
+client.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY')recovery=true;if(event==='SIGNED_OUT'){recovery=false;$('newPass').value='';$('newConfirm').value='';$('newPassword').hidden=true}if(['PASSWORD_RECOVERY','SIGNED_IN','SIGNED_OUT'].includes(event))setTimeout(refresh,0)});
 // Optional website copy must never block sign-in.
 client.from('gac_site_text').select('copy_key,text_value').then(({data,error})=>{if(!error)portal.applyCopy(data)}).catch(()=>{});
 $('guest').hidden=false;window.gacAccountReady=true;
