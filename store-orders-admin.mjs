@@ -4,16 +4,16 @@ const STATUS_LABELS={pending_fulfillment:"Paid · awaiting fulfillment",processi
 const CARRIERS=["","USPS","UPS","FedEx","DHL","Other"];
 const field=(parent,labelText,control)=>{const wrap=document.createElement("label");wrap.textContent=labelText;wrap.append(control);parent.append(wrap);return control};
 
-export function mountStoreOrdersAdmin({client,addAdmin,action,status}){
+export function mountStoreOrdersAdmin({client,addAdmin,action,status,onNewOrders=()=>{}}){
  const panel=addAdmin("storeOrders","Order oversight",'<div class="card"><div class="top"><div><h2>Order oversight · merchandise</h2><p>Update fulfillment status and add carrier and tracking details. Digital-logo purchases and firearm order requests remain in their own sections.</p></div><button id="storeOrdersRefresh" type="button" class="secondary">Refresh orders</button></div><div id="storeOrdersStatus" role="status" aria-live="polite"></div><div id="storeOrdersList"></div></div>');
  const $=id=>panel.querySelector("#"+id);
- let owner=false,orders=[];
+ let owner=false,orders=[],epoch=0;
  async function load(){
-  if(!owner)return;
+  if(!owner)return;const version=epoch;
   $("storeOrdersStatus").textContent="Loading orders…";
   const {data,error}=await client.from("gac_store_orders").select("*").order("created_at",{ascending:false});
-  if(error)throw error;
-  orders=data||[];render();$("storeOrdersStatus").textContent="";
+  if(error)throw error;if(!owner||version!==epoch)return;
+  orders=data||[];onNewOrders(orders.filter(order=>order.fulfillment_status==="pending_fulfillment").length);render();$("storeOrdersStatus").textContent="";
  }
  function render(){
   const host=$("storeOrdersList");host.replaceChildren();
@@ -50,5 +50,6 @@ export function mountStoreOrdersAdmin({client,addAdmin,action,status}){
   }
  }
  $("storeOrdersRefresh").onclick=()=>action(load);
- return {sync(isOwner){owner=!!isOwner;return owner?load():Promise.resolve();},clear(){owner=false;orders=[];$("storeOrdersList").replaceChildren();$("storeOrdersStatus").textContent="";}};
+ async function refreshIndicator(){if(!owner)return;const version=epoch,{data,error}=await client.from("gac_store_orders").select("fulfillment_status");if(error)throw error;if(!owner||version!==epoch)return;onNewOrders((data||[]).filter(order=>order.fulfillment_status==="pending_fulfillment").length);}
+ return {sync(isOwner){const next=!!isOwner;if(owner!==next){owner=next;epoch++;}return owner?load():Promise.resolve();},refreshIndicator,clear(){owner=false;epoch++;onNewOrders(0);orders=[];$("storeOrdersList").replaceChildren();$("storeOrdersStatus").textContent="";}};
 }
