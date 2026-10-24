@@ -12,10 +12,10 @@ begin
  begin perform public.gac_begin_merch_checkout(o2,repeat('c',64),repeat('d',64),cart);raise exception 'Reserved stock oversold';exception when raise_exception then if position('Not enough stock'in sqlerrm)=0 then raise;end if;end;
  reset role;if gac_private.merch_available(p,'S')<>1 then raise exception 'Reservation not reflected';end if;
  perform set_config('request.jwt.claim.sub',who::text,true);set local role authenticated;
- begin perform public.gac_owner_change_merch_stock(p,'S','count',1,0,'Reserved count reduction',extensions.gen_random_uuid());raise exception 'Reserved stock manually removed';exception when raise_exception then if position('Stock is reserved'in sqlerrm)=0 then raise;end if;end;reset role;
+ begin perform public.gac_owner_change_merch_stock(p,'S','count',1,0,'Reserved count reduction',extensions.gen_random_uuid());raise exception 'Reserved stock manually removed';exception when raise_exception then if position('Stock is reserved'in sqlerrm)=0 then raise;end if;end;
  pricing:=public.gac_owner_merch_checkout_settings(895,725);if pricing->>'shipping_cents'<>'895'or pricing->>'tax_bps'<>'725'or pricing->>'enabled'<>'false' then raise exception 'Manual pricing unexpectedly enabled checkout';end if;
  begin perform public.gac_owner_merch_checkout(true);raise exception 'Owner enabled paid checkout before release';exception when raise_exception then if position('remains disabled'in sqlerrm)=0 then raise;end if;end;
- reset role;set local role service_role;update gac_private.merch_checkout_settings set enabled=true where singleton;
+ reset role;update gac_private.merch_checkout_settings set enabled=true where singleton;set local role service_role;
  begin perform public.gac_merch_order_session(o,repeat('c',64));raise exception 'Order access bypass';exception when no_data_found then null;end;
  if public.gac_apply_merch_gateway('98767001',inv,null,'authCaptureTransaction','capturedPendingSettlement',199,now(),true,'test@example.invalid','{"address1":"123 Test St","postal_code":"00000"}')<>'review'then raise exception 'Amount mismatch fulfilled';end if;
  if public.gac_apply_merch_gateway('98767001',inv,null,'authCaptureTransaction','FDSAuthorizedPendingReview',200,now(),false,null,'{}')<>'protected'then raise exception 'Review not protected';end if;
