@@ -1,5 +1,5 @@
 import {mountAdminNavigation} from './admin-navigation.mjs?v=20261021-order-indicators';
-import {mountMerchAdmin} from './merch-admin.mjs?v=20261024-merch-checkout';
+import {mountMerchAdmin} from './merch-admin.mjs?v=20261024-product-workspace';
 import {mountFirearmAdmin} from './firearm-admin.mjs?v=20261021-order-indicators';
 import {mountStoreOrdersAdmin} from './store-orders-admin.mjs?v=20261024-merch-checkout';
 import {mountHostedCheckout} from './hosted-checkout.mjs?v=20261021-checkout-controls-match1';
@@ -173,7 +173,7 @@ export function mountPortal({client,api,status,action,refresh}){
  const exportGroups=el('button','Export matching groups · Excel CSV');exportGroups.type='button';exportGroups.className='secondary';archiveTools.prepend(exportGroups);exportGroups.onclick=()=>action(async()=>{if(!owner)throw Error('Owner access required');const groups=archiveMatches(),recognitions=await api.ownerRecognitions();exportCsv('GAC-callsign-groups-'+new Date().toISOString().slice(0,10)+'.csv',[['Group ID','Callsign group','Mode','Status','Removed','Number pool size','Price per number','Created at','Release at','Recognition start','Configured spins','Pause seconds','Recognition count','Recognized numbers / callsigns','Archived at'],...groups.map(g=>{const results=recognitions.filter(r=>r.collection_id===g.id).sort((a,b)=>(a.spin_number||1)-(b.spin_number||1));return [g.id,g.callsign,g.is_test?'TEST':'LIVE',g.state,g.archived_at?'Yes':'No',g.quantity,(g.price_cents/100).toFixed(2),g.created_at,g.release_at,g.recognition_at,g.spin_count||1,g.spin_pause_seconds||15,results.length,results.map(r=>'Spin '+(r.spin_number||1)+' · #'+r.edition_number+' · '+r.selected_callsign).join(' | '),g.archived_at]})]);status('Excel-compatible CSV exported for all groups matching your search and filter.');});
  $('archiveFind').oninput=$('archiveFilter').onchange=()=>{archivePage=0;renderGroupArchive()};$('archivePrevious').onclick=()=>{archivePage=Math.max(0,archivePage-1);renderGroupArchive()};$('archiveNext').onclick=()=>{archivePage++;renderGroupArchive()};
  merchAdmin=mountMerchAdmin({client,addAdmin,action,status});
- firearmAdmin=mountFirearmAdmin({client,addAdmin,action,status,onNewOrders:count=>adminNavigation?.setIndicator('inventory',count,'firearm requests')});
+ firearmAdmin=mountFirearmAdmin({client,addAdmin,action,status,onNewOrders:count=>adminNavigation?.setIndicator('firearms',count,'firearm requests')});
  storeOrdersAdmin=mountStoreOrdersAdmin({client,addAdmin,action,status,onNewOrders:count=>adminNavigation?.setIndicator('orders',count,'merchandise orders or payment reviews')});
  adminNavigation=mountAdminNavigation({admin,nav:adminNav,panels:adminPanels,onSelect:showAdmin});
  for(const x of admin.querySelectorAll('[data-copy]'))delete x.dataset.copy;

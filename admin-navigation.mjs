@@ -1,7 +1,8 @@
 export const ADMIN_SECTIONS=[
  {id:'collections',label:'Collections & Recognition',panels:[['collections','Groups & wheel'],['numberHolds','Numbers, holds & assignments'],['purchaseLogo','Purchase logos'],['wallpaper','Recognition wallpaper'],['recognitions','Recognition history']]},
  {id:'members',label:'Members & Messages',panels:[['messages','Messages, announcements & welcome'],['members','Manage members']]},
- {id:'inventory',label:'Inventory & Integrations',panels:[['firearms','Firearm inventory'],['merch','Merchandise & accessories'],['fastbound','FastBound connection']]},
+ {id:'products',label:'Products & Inventory',panels:[['merch','Products & inventory']]},
+ {id:'firearms',label:'Firearms & Compliance',panels:[['firearms','Firearm inventory'],['fastbound','FastBound connection']]},
  {id:'orders',label:'Orders & Shipping',panels:[['storeOrders','Order oversight & shipping']]},
  {id:'payments',label:'Payments',panels:[['payments','Checkout controls, transactions & refunds']]},
  {id:'settings',label:'Settings',panels:[['rules','Enrollment requirements']]}

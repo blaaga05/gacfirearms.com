@@ -20,6 +20,8 @@ The migration expects the current main-branch merchandise catalog, inventory, st
 
 After the migration, verify owner-only access to shipping/tax settings and review orders, verify the public checkout-availability RPC is not executable by anon, and run tests/merch-checkout.sql in a rollback-only test environment.
 
+For product-level shipping and tax fields, apply `database/product-inventory-pricing.sql` after the checkout migrations and before deploying the matching product editor. The owner edits each item’s price, per-item shipping amount, tax rate, public options, and stock in Admin → Products & Inventory. Firearm listings and FastBound stay under Firearms & Compliance.
+
 ## Release checks
 
 Before enabling production payments, verify:
@@ -29,6 +31,6 @@ Before enabling production payments, verify:
 3. Two browsers competing for the last unit cannot both pay successfully.
 4. Amount mismatch, incomplete shipping details, and Authorize.Net fraud review keep stock protected and surface in the owner payment-review list.
 5. Full and partial refunds update the order status and never restock automatically.
-6. Manually entered shipping and tax values appear in the hosted payment total.
+6. Each product’s manually entered shipping and tax values appear in the hosted payment total; mixed-product carts use the sum of each line’s product settings.
 7. RLS, function grants, server secrets, webhook signature validation, webhook retry, payment recovery, and payment-expiry checks pass in the isolated sandbox.
 8. Cloudflare serves the intended commit and the production payment gate is still closed until final approval.
