@@ -1,7 +1,7 @@
 import {money} from './merch-cart.mjs?v=20261017-stock';
-const BASE='https://egrsgfukkramgbibqsbx.supabase.co',KEY='sb_publishable_Vttu1L2cnuQhkrJw0V4rvA_ax4k1S7H';
+const BASE='https://yuuagwxqhxiiybwjhome.supabase.co',KEY='sb_publishable_iYZBPKMeGQlAnst_uXBsRA_V0UL4z8L';
 const STORAGE='gac-merch-orders-v1',el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e};
-export function mountMerchCheckout({button,getCart,onPaid,onStockChanged}){
+export function mountMerchCheckout({button,getCart,getAccessToken,onPaid,onStockChanged}){
  let pending=null,busy=false,current=null,polling=false,enabled=false;
  const cached=()=>{try{return JSON.parse(localStorage.getItem(STORAGE)||'[]')}catch{return[]}},remember=o=>{try{const rows=cached().filter(x=>x.id!==o.id);localStorage.setItem(STORAGE,JSON.stringify([o,...rows].slice(0,20)))}catch{}};
  const dialog=el('dialog');dialog.className='merch-cart merch-receipt';dialog.setAttribute('aria-labelledby','merchReceiptTitle');
@@ -11,7 +11,8 @@ export function mountMerchCheckout({button,getCart,onPaid,onStockChanged}){
  document.head.append(style);document.body.append(dialog);let pollTimer;
  close.onclick=()=>{dialog.close();clearInterval(pollTimer)};
  async function call(body){
-  const r=await fetch(BASE+'/functions/v1/gac-merch-checkout',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(30000),cache:'no-store'});
+  const headers={apikey:KEY,'Content-Type':'application/json'};if(body.action==='start'&&getAccessToken){const token=await getAccessToken();if(token)headers.Authorization='Bearer '+token;}
+  const r=await fetch(BASE+'/functions/v1/gac-merch-checkout',{method:'POST',headers,body:JSON.stringify(body),signal:AbortSignal.timeout(30000),cache:'no-store'});
   const d=await r.json().catch(()=>({}));if(!r.ok||d.error)throw Error(d.error||'Checkout unavailable');return d;
  }
  function updateButton(){button.textContent='Checkout';button.disabled=!enabled||busy||!getCart().length;button.title=enabled?'Continue to secure hosted checkout':'Paid merchandise checkout is unavailable while GAC completes its release checks.'}
