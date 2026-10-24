@@ -1,5 +1,5 @@
 import {money} from './merch-cart.mjs?v=20261017-stock';
-const BASE='https://yuuagwxqhxiiybwjhome.supabase.co',KEY='sb_publishable_iYZBPKMeGQlAnst_uXBsRA_V0UL4z8L';
+const BASE='https://egrsgfukkramgbibqsbx.supabase.co',KEY='sb_publishable_Vttu1L2cnuQhkrJw0V4rvA_ax4k1S7H';
 const STORAGE='gac-merch-orders-v1',el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e};
 export function mountMerchCheckout({button,getCart,getAccessToken,onPaid,onStockChanged}){
  let pending=null,busy=false,current=null,polling=false,enabled=false;
