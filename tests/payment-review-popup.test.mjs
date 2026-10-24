@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mountHostedCheckout} from '../web/hosted-checkout.mjs';
+import {mountHostedCheckout} from '../hosted-checkout.mjs';
 class Element{constructor(tag='div'){this.tag=tag;this.children=[];this.style={};this.nodes={};this.open=false;}append(...nodes){this.children.push(...nodes)}prepend(...nodes){this.children.unshift(...nodes)}setAttribute(){}addEventListener(){}querySelector(s){return this.nodes[s]??=new Element()}replaceChildren(){this.children=[]}showModal(){this.open=true}close(){this.open=false}focus(){this.focused=true}click(){this.onclick?.()}}
 test('unresolved payment opens an acknowledgment popup, links to GAC messages, and clears between accounts',async()=>{
  const globals=['document','sessionStorage','location','setInterval'];const originals=Object.fromEntries(globals.map(k=>[k,globalThis[k]]));
