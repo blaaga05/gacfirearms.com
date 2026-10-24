@@ -1,5 +1,5 @@
 import {mountAdminNavigation} from './admin-navigation.mjs?v=20261021-order-indicators';
-import {mountMerchAdmin} from './merch-admin.mjs?v=20261024-ga-destination-tax';
+import {mountMerchAdmin} from './merch-admin.mjs?v=20261024-ga-destination-tax2';
 import {mountFirearmAdmin} from './firearm-admin.mjs?v=20261021-order-indicators';
 import {mountStoreOrdersAdmin} from './store-orders-admin.mjs?v=20261024-merch-checkout';
 import {mountHostedCheckout} from './hosted-checkout.mjs?v=20261021-checkout-controls-match1';
