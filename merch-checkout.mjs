@@ -1,5 +1,5 @@
-import {money} from './merch-cart.mjs?v=20261024-ga-destination-tax';
-import {GEORGIA_COUNTIES,georgiaTaxOptions} from './georgia-sales-tax.mjs?v=20261024-ga-destination-tax';
+import {money} from './merch-cart.mjs?v=20261024-ga-destination-tax2';
+import {GEORGIA_COUNTIES,georgiaTaxOptions} from './georgia-sales-tax.mjs?v=20261024-ga-destination-tax2';
 const BASE='https://yuuagwxqhxiiybwjhome.supabase.co',KEY='sb_publishable_iYZBPKMeGQlAnst_uXBsRA_V0UL4z8L';
 const STORAGE='gac-merch-orders-v1',el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e};
 export function mountMerchCheckout({button,getCart,getAccessToken,onPaid,onStockChanged}){
@@ -16,6 +16,7 @@ export function mountMerchCheckout({button,getCart,getAccessToken,onPaid,onStock
  const deliveryForm=el('form');deliveryForm.className='merch-delivery-form';
  const field=(labelText,id,type='text')=>{const label=el('label',labelText),input=type==='select'?el('select'):el('input');input.id=id;input.name=id;input.required=true;if(type!=='select')input.type=type;label.htmlFor=id;label.append(input);return{label,input}};
  const fullName=field('Full name','deliveryName'),address1=field('Street address','deliveryAddress1'),address2=field('Apartment, suite, etc. (optional)','deliveryAddress2'),city=field('City','deliveryCity'),state=field('State','deliveryState','select'),postal=field('ZIP code','deliveryPostal','text'),county=field('Georgia county','deliveryCounty','select'),district=field('Local tax area','deliveryDistrict','select');
+ address2.input.required=false;
  const states=[['AL','Alabama'],['AK','Alaska'],['AZ','Arizona'],['AR','Arkansas'],['CA','California'],['CO','Colorado'],['CT','Connecticut'],['DE','Delaware'],['DC','District of Columbia'],['FL','Florida'],['GA','Georgia'],['HI','Hawaii'],['ID','Idaho'],['IL','Illinois'],['IN','Indiana'],['IA','Iowa'],['KS','Kansas'],['KY','Kentucky'],['LA','Louisiana'],['ME','Maine'],['MD','Maryland'],['MA','Massachusetts'],['MI','Michigan'],['MN','Minnesota'],['MS','Mississippi'],['MO','Missouri'],['MT','Montana'],['NE','Nebraska'],['NV','Nevada'],['NH','New Hampshire'],['NJ','New Jersey'],['NM','New Mexico'],['NY','New York'],['NC','North Carolina'],['ND','North Dakota'],['OH','Ohio'],['OK','Oklahoma'],['OR','Oregon'],['PA','Pennsylvania'],['RI','Rhode Island'],['SC','South Carolina'],['SD','South Dakota'],['TN','Tennessee'],['TX','Texas'],['UT','Utah'],['VT','Vermont'],['VA','Virginia'],['WA','Washington'],['WV','West Virginia'],['WI','Wisconsin'],['WY','Wyoming']];
  const addOption=(select,value,label)=>{const option=el('option',label);option.value=value;select.append(option)};
  addOption(state.input,'','Choose state');for(const [code,name]of states)addOption(state.input,code,name);
