@@ -1,8 +1,10 @@
 import {stockFor,stockLabel} from './merch-inventory.mjs?v=20261017-stock';
 import {CART_KEY,money,safeCart,addItem,subtotal} from './merch-cart.mjs?v=20261017-stock';
-import {mountMerchCheckout} from './merch-checkout.mjs?v=20261024-merch-checkout';
+import {mountMerchCheckout} from './merch-checkout.mjs?v=20261024-member-order-updates';
+const {createClient}=await import('./assets/supabase-client-2.57.4.mjs');
 const URL='https://yuuagwxqhxiiybwjhome.supabase.co/rest/v1/gac_merch_products?select=id,name,description,price_cents,sizes,image_path,published,category,price_pending,stock:gac_merch_stock(size,quantity)&published=eq.true&order=sort_order,created_at';
 const KEY='sb_publishable_iYZBPKMeGQlAnst_uXBsRA_V0UL4z8L';
+const checkoutAuth=createClient('https://yuuagwxqhxiiybwjhome.supabase.co',KEY);
 const $=id=>document.getElementById(id),el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e};
 let products=[],cart=[],loaded=false,loading=null,previousFocus,checkout;
 const dialog=$('merchCart'),items=$('merchCartItems'),status=$('merchStatus');
@@ -20,4 +22,4 @@ $('merchCartOpen').onclick=()=>openCart();$('merchCartClose').onclick=()=>dialog
 // Keep counts current without replacing a visitor’s in-progress size/quantity selection.
 async function refreshStock(){if(!loaded||loading||document.hidden)return;try{const r=await fetch(URL,{headers:{apikey:KEY},signal:AbortSignal.timeout(12000),cache:'no-store'});if(!r.ok)return;const next=await applyReservedAvailability(await r.json());if(JSON.stringify(products)===JSON.stringify(next))return;products=next;cart=safeCart(cart,products);save();const choices=[...document.querySelectorAll('.merch-product form')].map(f=>({size:f.querySelector('select')?.value,quantity:f.querySelector('input')?.value}));renderProducts();for(const [i,f]of [...document.querySelectorAll('.merch-product form')].entries()){const select=f.querySelector('select'),input=f.querySelector('input');if(choices[i]&&[...select.options].some(o=>o.value===choices[i].size)){select.value=choices[i].size;select.onchange();input.value=choices[i].quantity;}}renderCart();}catch{/* Keep the last known counts; checkout must revalidate on the server. */}}
 setInterval(refreshStock,30000);addEventListener('focus',refreshStock);
-checkout=mountMerchCheckout({button:$('merchCheckout'),getCart:()=>cart.map(({id,size,quantity})=>({id,size,quantity})),onPaid:()=>{cart=[];save();renderCart()},onStockChanged:refreshStock});
+checkout=mountMerchCheckout({button:$('merchCheckout'),getCart:()=>cart.map(({id,size,quantity})=>({id,size,quantity})),getAccessToken:async()=>{const {data,error}=await checkoutAuth.auth.getSession();if(error)throw error;return data.session?.access_token||null},onPaid:()=>{cart=[];save();renderCart()},onStockChanged:refreshStock});

@@ -2,7 +2,7 @@ begin;
 create table gac_private.merch_checkout_settings(singleton boolean primary key default true check(singleton),enabled boolean not null default false,shipping_cents integer not null default 0 check(shipping_cents between 0 and 100000),tax_bps integer not null default 0 check(tax_bps between 0 and 10000));
 insert into gac_private.merch_checkout_settings(singleton)values(true);
 create table gac_private.merch_orders(
- id uuid primary key,access_hash text not null check(access_hash~'^[a-f0-9]{64}$'),client_hash text not null,
+ id uuid primary key,access_hash text not null check(access_hash~'^[a-f0-9]{64}$'),client_hash text not null,user_id uuid references auth.users(id) on delete set null,
  store_order_id uuid unique references public.gac_store_orders(id),
  invoice text not null unique check(invoice~'^GAM[a-f0-9]{17}$'),lines jsonb not null,subtotal_cents integer not null,shipping_cents integer not null,tax_cents integer not null,total_cents integer not null check(total_cents>0),
  state text not null default 'pending'check(state in('pending','review','paid','declined','voided','refund_pending','partially_refunded','refunded','cancelled')),
@@ -48,7 +48,7 @@ begin
   if not p.published or p.price_pending or not sn=any(p.sizes)then raise exception 'An item is unavailable or awaiting a price';end if;
   perform 1 from public.gac_merch_stock where product_id=p.id and size=sn for update;
   if coalesce(gac_private.merch_available(p.id,sn),-1)<n then raise exception 'Not enough stock for % (%)',p.name,sn;end if;
-  total:=total+p.price_cents*n;lines:=lines||jsonb_build_array(jsonb_build_object('id',p.id,'name',p.name,'size',sn,'quantity',n,'unit_cents',p.price_cents));
+  total:=total+p.price_cents*n;lines:=lines||jsonb_build_array(jsonb_build_object('id',p.id,'name',p.name,'size',sn,'quantity',n,'unit_cents',p.price_cents,'image_path',p.image_path));
  end loop;
  if total>1000000 then raise exception 'Cart total exceeds checkout limit';end if;
  insert into gac_private.merch_orders(id,access_hash,client_hash,invoice,lines,subtotal_cents,shipping_cents,tax_cents,total_cents)values(p_id,p_access_hash,p_client_hash,'GAM'||left(replace(p_id::text,'-',''),17),lines,total,settings.shipping_cents,round(total*settings.tax_bps/10000.0)::integer,total+settings.shipping_cents+round(total*settings.tax_bps/10000.0)::integer)returning * into o;
