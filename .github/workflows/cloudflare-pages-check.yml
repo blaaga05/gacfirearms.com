@@ -1,0 +1,33 @@
+name: Cloudflare Pages live check
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-live-site:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Confirm Cloudflare is serving this checkout update
+        env:
+          SITE_URL: https://gacfirearms.com/
+          DEPLOY_MARKER: 20261024-ga-destination-tax
+        run: |
+          for attempt in $(seq 1 30); do
+            page=$(curl --silent --show-error --fail --max-time 20 \
+              -H 'Cache-Control: no-cache' \
+              "${SITE_URL}?gac-deploy-check=${GITHUB_SHA}" 2>/dev/null || true)
+            if printf '%s' "$page" | grep -Fq "$DEPLOY_MARKER"; then
+              echo "Cloudflare is serving the checkout build marker $DEPLOY_MARKER."
+              exit 0
+            fi
+            echo "Waiting for Cloudflare deployment ($attempt/30)."
+            sleep 15
+          done
+          echo "Cloudflare did not serve $DEPLOY_MARKER within the deployment window."
+          exit 1

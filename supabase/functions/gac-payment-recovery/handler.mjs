@@ -10,7 +10,10 @@ export async function observeTransaction(env,t,fetcher=fetch){
  let merchOrder=merchInvoicePattern.test(invoice||'');
  if(!merchOrder&&kind==='refundTransaction'&&reference)merchOrder=!!(await db('gac_merch_refund_order',{p_reference:reference,p_invoice:typeof invoice==='string'?invoice:null}));
  if(merchOrder){
-  const ship=t.shipTo||{},shipping={name:[ship.firstName,ship.lastName].filter(Boolean).join(' ').slice(0,160),address1:String(ship.address||'').slice(0,200),city:String(ship.city||'').slice(0,100),state:String(ship.state||'').slice(0,100),postal_code:String(ship.zip||'').slice(0,20),country:String(ship.country||'').slice(0,100)};
+  const ship=t.shipTo||{},gatewayShipping={name:[ship.firstName,ship.lastName].filter(Boolean).join(' ').slice(0,160),address1:String(ship.address||'').slice(0,200),city:String(ship.city||'').slice(0,100),state:String(ship.state||'').slice(0,100),postal_code:String(ship.zip||'').slice(0,20),country:String(ship.country||'').slice(0,100)};
+  const savedShipping=merchInvoicePattern.test(invoice||'')?await db('gac_merch_shipping_for_invoice',{p_invoice:invoice}):null;
+  // The customer supplied the address before the tax quote. Preserve its county and tax jurisdiction.
+  const shipping=savedShipping&&typeof savedShipping==='object'?savedShipping:gatewayShipping;
   outcome=await db('gac_apply_merch_gateway',{p_transaction:tx,p_invoice:merchInvoicePattern.test(invoice||'')?invoice:null,p_reference:reference&&/^\d{1,30}$/.test(reference)?reference:null,p_kind:kind,p_status:status,p_amount_cents:amount,p_submitted:t.submitTimeUTC||null,p_approved:String(t.responseCode)==='1'&&!t.splitTenderId,p_email:String(t.customer?.email||t.billTo?.email||'').slice(0,254),p_shipping:shipping});
  }
  if(invoicePattern.test(invoice||'')&&kind==='authCaptureTransaction'){
