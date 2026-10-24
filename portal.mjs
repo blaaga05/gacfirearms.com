@@ -1,7 +1,7 @@
 import {mountAdminNavigation} from './admin-navigation.mjs?v=20261021-order-indicators';
-import {mountMerchAdmin} from './merch-admin.mjs?v=20261017-stock';
+import {mountMerchAdmin} from './merch-admin.mjs?v=20261024-merch-checkout';
 import {mountFirearmAdmin} from './firearm-admin.mjs?v=20261021-order-indicators';
-import {mountStoreOrdersAdmin} from './store-orders-admin.mjs?v=20261021-order-indicators';
+import {mountStoreOrdersAdmin} from './store-orders-admin.mjs?v=20261024-merch-checkout';
 import {mountHostedCheckout} from './hosted-checkout.mjs?v=20261021-checkout-controls-match1';
 import {mountManualAssignment} from './manual-assignment.mjs?v=20261017-selection-controls';
 import {mountAdminAnnouncements} from './admin-announcements.mjs?v=20261015-announcements';
@@ -162,7 +162,7 @@ export function mountPortal({client,api,status,action,refresh}){
  $('archiveFind').oninput=$('archiveFilter').onchange=()=>{archivePage=0;renderGroupArchive()};$('archivePrevious').onclick=()=>{archivePage=Math.max(0,archivePage-1);renderGroupArchive()};$('archiveNext').onclick=()=>{archivePage++;renderGroupArchive()};
  merchAdmin=mountMerchAdmin({client,addAdmin,action,status});
  firearmAdmin=mountFirearmAdmin({client,addAdmin,action,status,onNewOrders:count=>adminNavigation?.setIndicator('inventory',count,'firearm requests')});
- storeOrdersAdmin=mountStoreOrdersAdmin({client,addAdmin,action,status,onNewOrders:count=>adminNavigation?.setIndicator('orders',count,'orders to fulfill')});
+ storeOrdersAdmin=mountStoreOrdersAdmin({client,addAdmin,action,status,onNewOrders:count=>adminNavigation?.setIndicator('orders',count,'merchandise orders or payment reviews')});
  adminNavigation=mountAdminNavigation({admin,nav:adminNav,panels:adminPanels,onSelect:showAdmin});
  for(const x of admin.querySelectorAll('[data-copy]'))delete x.dataset.copy;
  showAdmin(ownerPanel);

@@ -5,17 +5,20 @@ const CARRIERS=["","USPS","UPS","FedEx","DHL","Other"];
 const field=(parent,labelText,control)=>{const wrap=document.createElement("label");wrap.textContent=labelText;wrap.append(control);parent.append(wrap);return control};
 
 export function mountStoreOrdersAdmin({client,addAdmin,action,status,onNewOrders=()=>{}}){
- const panel=addAdmin("storeOrders","Order oversight",'<div class="card"><div class="top"><div><h2>Order oversight · merchandise</h2><p>Update fulfillment status and add carrier and tracking details. Digital-logo purchases and firearm order requests remain in their own sections.</p></div><button id="storeOrdersRefresh" type="button" class="secondary">Refresh orders</button></div><div id="storeOrdersStatus" role="status" aria-live="polite"></div><div id="storeOrdersList"></div></div>');
+ const panel=addAdmin("storeOrders","Order oversight",'<div class="card"><div class="top"><div><h2>Order oversight · merchandise</h2><p>Review payment holds, update fulfillment status, and add carrier and tracking details. Firearm order requests remain in their own section.</p></div><button id="storeOrdersRefresh" type="button" class="secondary">Refresh orders</button></div><div id="storeOrdersStatus" role="status" aria-live="polite"></div><div id="merchCheckoutReviews"></div><div id="storeOrdersList"></div></div>');
  const $=id=>panel.querySelector("#"+id);
- let owner=false,orders=[],epoch=0;
+ let owner=false,orders=[],reviewOrders=[],epoch=0;
  async function load(){
   if(!owner)return;const version=epoch;
   $("storeOrdersStatus").textContent="Loading orders…";
-  const {data,error}=await client.from("gac_store_orders").select("*").order("created_at",{ascending:false});
-  if(error)throw error;if(!owner||version!==epoch)return;
-  orders=data||[];onNewOrders(orders.filter(order=>order.fulfillment_status==="pending_fulfillment").length);render();$("storeOrdersStatus").textContent="";
+  const [ordersResult,reviewsResult]=await Promise.all([client.from("gac_store_orders").select("*").order("created_at",{ascending:false}),client.rpc("gac_owner_merch_orders")]);
+  if(ordersResult.error)throw ordersResult.error;if(reviewsResult.error)throw reviewsResult.error;if(!owner||version!==epoch)return;
+  orders=ordersResult.data||[];reviewOrders=(reviewsResult.data||[]).filter(order=>["review","refund_pending","partially_refunded"].includes(order.state));onNewOrders(orders.filter(order=>order.fulfillment_status==="pending_fulfillment").length+reviewOrders.length);render();$("storeOrdersStatus").textContent="";
  }
  function render(){
+  const reviewHost=$("merchCheckoutReviews");reviewHost.replaceChildren();const reviewHeading=text("h3","Payment review holds");reviewHost.append(reviewHeading);
+  if(!reviewOrders.length)reviewHost.append(text("p","No merchandise payment reviews need attention."));
+  for(const order of reviewOrders){const details=document.createElement("details");details.className="editable-member";const summary=text("summary",order.invoice+" · "+(order.state||"review").replaceAll("_"," ")+" · "+money(order.total_cents));const body=document.createElement("div");body.style.cssText="display:grid;gap:8px;margin-top:12px";const lines=(Array.isArray(order.lines)?order.lines:[]).map(item=>[item.name,item.size&&"Size "+item.size,item.quantity&&"Qty "+item.quantity].filter(Boolean).join(" · ")).join(" | ");body.append(text("p","Created "+new Date(order.created_at).toLocaleString()+" · "+lines));if(order.email)body.append(text("p","Customer: "+order.email));if(order.note)body.append(text("p","GAC note: "+order.note));body.append(text("p","Stock remains reserved. Verify the payment in Authorize.Net and contact the customer before resolving this order."));details.append(summary,body);reviewHost.append(details)}
   const host=$("storeOrdersList");host.replaceChildren();
   if(!orders.length){host.append(text("p","No merchandise checkout orders yet. This list will fill after main-site checkout is connected."));return;}
   for(const order of orders){
@@ -50,6 +53,6 @@ export function mountStoreOrdersAdmin({client,addAdmin,action,status,onNewOrders
   }
  }
  $("storeOrdersRefresh").onclick=()=>action(load);
- async function refreshIndicator(){if(!owner)return;const version=epoch,{data,error}=await client.from("gac_store_orders").select("fulfillment_status");if(error)throw error;if(!owner||version!==epoch)return;onNewOrders((data||[]).filter(order=>order.fulfillment_status==="pending_fulfillment").length);}
- return {sync(isOwner){const next=!!isOwner;if(owner!==next){owner=next;epoch++;}return owner?load():Promise.resolve();},refreshIndicator,clear(){owner=false;epoch++;onNewOrders(0);orders=[];$("storeOrdersList").replaceChildren();$("storeOrdersStatus").textContent="";}};
+ async function refreshIndicator(){if(!owner)return;const version=epoch,[ordersResult,reviewsResult]=await Promise.all([client.from("gac_store_orders").select("fulfillment_status"),client.rpc("gac_owner_merch_orders")]);if(ordersResult.error)throw ordersResult.error;if(reviewsResult.error)throw reviewsResult.error;if(!owner||version!==epoch)return;onNewOrders((ordersResult.data||[]).filter(order=>order.fulfillment_status==="pending_fulfillment").length+(reviewsResult.data||[]).filter(order=>["review","refund_pending","partially_refunded"].includes(order.state)).length);}
+ return {sync(isOwner){const next=!!isOwner;if(owner!==next){owner=next;epoch++;}return owner?load():Promise.resolve();},refreshIndicator,clear(){owner=false;epoch++;onNewOrders(0);orders=[];reviewOrders=[];$("storeOrdersList").replaceChildren();$("merchCheckoutReviews").replaceChildren();$("storeOrdersStatus").textContent="";}};
 }

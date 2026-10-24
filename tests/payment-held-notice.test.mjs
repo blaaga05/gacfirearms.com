@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {mountHeldPaymentNotice}from '../web/payment-held-notice.mjs';
+import test from 'node:test';import assert from 'node:assert/strict';import {mountHeldPaymentNotice}from '../payment-held-notice.mjs';
 class Element{constructor(tag){this.tag=tag;this.children=[];this.style={};this.open=false;}append(...n){this.children.push(...n)}replaceChildren(...n){this.children=n}setAttribute(k,v){this[k]=v}addEventListener(){}showModal(){this.open=true}close(){this.open=false}focus(){}}
 const walk=n=>n.children.flatMap(c=>[c,...walk(c)]);
 function setup(row){const body=new Element('body');globalThis.document={hidden:false,body,createElement:t=>new Element(t),querySelector:()=>null};let rows=[row],calls=[],updated=0;const ui=mountHeldPaymentNotice({client:{rpc:async()=>({data:rows}),functions:{invoke:async(n,a)=>{calls.push([n,a]);rows=[];return {data:{status:'credited'}}}}},onUpdated:async()=>updated++});return {ui,dialog:body.children[0],calls,updated:()=>updated,rows:r=>rows=r}}

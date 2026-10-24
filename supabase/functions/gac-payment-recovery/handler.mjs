@@ -1,16 +1,23 @@
 import {authorize,backend,gatewayConfig,cents} from '../_shared/authorizenet.mjs';
 const invoicePattern=/^GAC[a-f\d]{17}$/;
+const merchInvoicePattern=/^GAM[a-f\d]{17}$/;
 const rows=value=>value==null?[]:Array.isArray(value)?value:(()=>{throw Error('Invalid gateway page')})();
 const iso=date=>new Date(date).toISOString().replace(/\.\d{3}Z$/,'Z');
 export async function observeTransaction(env,t,fetcher=fetch){
  const tx=String(t?.transId||'');if(!/^\d{1,30}$/.test(tx))throw Error('Invalid transaction details');
  const db=backend(env,fetcher),invoice=t.order?.invoiceNumber,reference=t.refTransId?String(t.refTransId):null;
  const amount=cents(t.settleAmount??t.authAmount??0),status=String(t.transactionStatus||'unknown'),kind=String(t.transactionType||'unknown');let outcome='ignored';
+ let merchOrder=merchInvoicePattern.test(invoice||'');
+ if(!merchOrder&&kind==='refundTransaction'&&reference)merchOrder=!!(await db('gac_merch_refund_order',{p_reference:reference,p_invoice:typeof invoice==='string'?invoice:null}));
+ if(merchOrder){
+  const ship=t.shipTo||{},shipping={name:[ship.firstName,ship.lastName].filter(Boolean).join(' ').slice(0,160),address1:String(ship.address||'').slice(0,200),city:String(ship.city||'').slice(0,100),state:String(ship.state||'').slice(0,100),postal_code:String(ship.zip||'').slice(0,20),country:String(ship.country||'').slice(0,100)};
+  outcome=await db('gac_apply_merch_gateway',{p_transaction:tx,p_invoice:merchInvoicePattern.test(invoice||'')?invoice:null,p_reference:reference&&/^\d{1,30}$/.test(reference)?reference:null,p_kind:kind,p_status:status,p_amount_cents:amount,p_submitted:t.submitTimeUTC||null,p_approved:String(t.responseCode)==='1'&&!t.splitTenderId,p_email:String(t.customer?.email||t.billTo?.email||'').slice(0,254),p_shipping:shipping});
+ }
  if(invoicePattern.test(invoice||'')&&kind==='authCaptureTransaction'){
   const approved=String(t.responseCode)==='1'&&!t.splitTenderId;
   outcome=await db('gac_apply_authorizenet_payment',{p_transaction:tx,p_invoice:invoice,p_amount_cents:amount,p_paid_at:t.submitTimeUTC,p_status:approved?status:'unapproved:'+status,p_currency:'usd'});
  }
- await db('gac_observe_gateway_transaction',{p_transaction:tx,p_invoice:invoicePattern.test(invoice||'')?invoice:null,p_reference:reference&&/^\d{1,30}$/.test(reference)?reference:null,p_kind:kind,p_status:status,p_amount_cents:amount});
+ if(!merchOrder)await db('gac_observe_gateway_transaction',{p_transaction:tx,p_invoice:invoicePattern.test(invoice||'')?invoice:null,p_reference:reference&&/^\d{1,30}$/.test(reference)?reference:null,p_kind:kind,p_status:status,p_amount_cents:amount});
  return {outcome,terminal:['settledSuccessfully','voided','declined','expired','refundSettledSuccessfully'].includes(status)};
 }
 export async function runRecovery({env,fetcher=fetch,now=()=>Date.now()}){
