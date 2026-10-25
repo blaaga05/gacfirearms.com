@@ -1,6 +1,12 @@
 import {money} from './merch-cart.mjs?v=20261025-address-review';
 const BASE='https://yuuagwxqhxiiybwjhome.supabase.co',KEY='sb_publishable_iYZBPKMeGQlAnst_uXBsRA_V0UL4z8L';
 const STORAGE='gac-merch-orders-v1',el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e};
+export function merchandiseBreakdown(data){return[
+ {label:'Items',amount:data.subtotal_cents},
+ {label:data.tax_jurisdiction?data.tax_jurisdiction+' sales tax':'Sales tax',amount:data.tax_cents},
+ {label:'Shipping',amount:data.shipping_cents},
+ {label:'Total',amount:data.total_cents,total:true}
+]}
 export function mountMerchCheckout({button,getCart,getAccessToken,onPaid,onStockChanged}){
  let pending=null,pendingHosted=null,busy=false,current=null,polling=false,enabled=false;
  const cached=()=>{try{return JSON.parse(localStorage.getItem(STORAGE)||'[]')}catch{return[]}},remember=o=>{try{const safe={id:o.id,access:o.access};const rows=cached().filter(x=>x.id!==safe.id);localStorage.setItem(STORAGE,JSON.stringify([safe,...rows].slice(0,20)))}catch{}};
@@ -38,7 +44,7 @@ export function mountMerchCheckout({button,getCart,getAccessToken,onPaid,onStock
   info.textContent='Order '+o.id.slice(0,8)+' · '+money(d.total_cents||0)+' · '+String(d.state||'pending').replaceAll('_',' ');
   lines.replaceChildren();
   for(const l of d.lines||[])lines.append(el('p',l.name+' · '+l.size+' × '+l.quantity+' · '+money(l.unit_cents*l.quantity)));
-  lines.append(el('p','Subtotal '+money(d.subtotal_cents||0)+' · Shipping '+money(d.shipping_cents||0)+' · Tax '+money(d.tax_cents||0)));
+  lines.append(el('p','Subtotal '+money(d.subtotal_cents||0)+' · Tax '+money(d.tax_cents||0)+' · Shipping '+money(d.shipping_cents||0)+' · Total '+money(d.total_cents||0)));
   message.textContent=d.note||labels[d.state]||'Contact GAC about this order.';
   if(!dialog.open)dialog.showModal();
   if(d.state==='paid'&&!o.applied){o.applied=true;remember(o);onPaid?.(d.lines||[]);}
@@ -50,7 +56,7 @@ export function mountMerchCheckout({button,getCart,getAccessToken,onPaid,onStock
  function renderReview(data,shipping){
   reviewAddress.textContent='Deliver to: '+[shipping.name,shipping.address1,shipping.address2,shipping.city+', '+shipping.state+' '+shipping.postal_code].filter(Boolean).join(', ');
   reviewItems.replaceChildren();for(const line of data.lines||[]){const row=el('div');row.className='merch-review-line';row.append(el('p',line.name));row.append(el('small',line.size+' · '+line.quantity+' × '+money(line.unit_cents)));row.append(el('strong',money(line.unit_cents*line.quantity)));reviewItems.append(row)}
-  reviewRows.replaceChildren();reviewRows.className='merch-review-totals';const addRow=(label,value,grand=false)=>{const row=el('div');row.className='merch-review-total'+(grand?' grand':'');row.append(el('span',label),el('strong',money(value)));reviewRows.append(row)};addRow('Items',data.subtotal_cents);addRow('Shipping',data.shipping_cents);addRow(data.tax_jurisdiction?data.tax_jurisdiction+' sales tax':'Sales tax',data.tax_cents);addRow('Total',data.total_cents,true);
+  reviewRows.replaceChildren();reviewRows.className='merch-review-totals';for(const item of merchandiseBreakdown(data)){const row=el('div');row.className='merch-review-total'+(item.total?' grand':'');row.append(el('span',item.label),el('strong',money(item.amount||0)));reviewRows.append(row)}
   reviewStatus.textContent='Stock is held for 20 minutes while you complete checkout.';deliveryForm.hidden=true;reviewPanel.hidden=false;reviewPay.disabled=false;reviewPay.focus();
  }
  function continueToPayment(){const d=pendingHosted?.data;if(!d){reviewStatus.textContent='Review the order again before continuing.';reviewPanel.hidden=true;deliveryForm.hidden=false;return;}const expected=d.environment==='sandbox'?'https://test.authorize.net/payment/payment':'https://accept.authorize.net/payment/payment';if(d.url!==expected||typeof d.token!=='string'||d.token.length<10){reviewStatus.textContent='Invalid payment destination. Please start again.';return;}const form=el('form');form.method='POST';form.action=d.url;form.enctype='application/x-www-form-urlencoded';form.target='_self';form.style.display='none';const token=el('input');token.type='hidden';token.name='token';token.value=d.token;form.append(token);document.body.append(form);form.submit()}
