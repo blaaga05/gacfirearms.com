@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createMerchHandler,merchandiseSettings,validateMerchShipping,hash} from '../supabase/functions/gac-merch-checkout/handler.mjs';
-import {merchandiseBreakdown} from '../merch-checkout.mjs';
+import {merchandiseBreakdown,mayRestartMerchCheckout,formatAddressCase,normalizeAddressSuggestion} from '../merch-checkout.mjs';
 import {observeTransaction} from '../supabase/functions/gac-payment-recovery/handler.mjs';
 
 const id='11111111-1111-4111-8111-111111111111';
@@ -19,6 +19,24 @@ test('order review puts calculated tax above the saved shipping charge and inclu
  const rows=merchandiseBreakdown({subtotal_cents:3000,tax_cents:240,tax_jurisdiction:'Houston',shipping_cents:895,total_cents:4135});
  assert.deepEqual(rows.map(row=>row.label),['Items','Houston sales tax','Shipping','Total']);
  assert.equal(rows[2].amount,895);assert.equal(rows[3].amount,4135);
+});
+
+test('an expired checkout can restart only after verified no-payment status',()=>{
+ const expires_at='2026-10-25T02:14:25.000Z';
+ assert.equal(mayRestartMerchCheckout({state:'expired',expires_at}),false);
+ assert.equal(mayRestartMerchCheckout({state:'expired',expires_at,payment_checked_at:'2026-10-25T02:14:24.999Z'}),false);
+ assert.equal(mayRestartMerchCheckout({state:'expired',expires_at,payment_checked_at:'2026-10-25T02:14:25.000Z'}),true);
+ assert.equal(mayRestartMerchCheckout({state:'expired',expires_at,payment_checked_at:'2026-10-25T02:14:26.000Z',transaction:'9876'}),false);
+ assert.equal(mayRestartMerchCheckout({state:'pending',expires_at,payment_checked_at:'2026-10-25T02:14:26.000Z'}),false);
+ assert.equal(mayRestartMerchCheckout({state:'declined'}),true);
+ assert.equal(mayRestartMerchCheckout({state:'cancelled'}),true);
+});
+
+test('address suggestions fill normalized US address fields and reject non-US results',()=>{
+ const suggestion=normalizeAddressSuggestion({properties:{countrycode:'US',housenumber:'123',street:'main street',city:'macon',state:'Georgia',postcode:'31201-1234'}});
+ assert.deepEqual(suggestion,{address1:'123 Main Street',city:'Macon',state:'GA',postal_code:'31201-1234',display:'123 Main Street, Macon, Georgia, 31201-1234'});
+ assert.equal(normalizeAddressSuggestion({properties:{countrycode:'CA',street:'Main Street'}}),null);
+ assert.equal(formatAddressCase('123 north main street'),'123 North Main Street');
 });
 
 test('cart hold actions reserve the supplied variants and accept an empty cart to release them',async()=>{
@@ -74,6 +92,7 @@ test('signed-in merchandise checkout links the verified Supabase member to their
 
 test('production merchandise payment creation is blocked before any gateway call',async()=>{let calls=0;const h=createMerchHandler({env:k=>k==='AUTHORIZENET_ENVIRONMENT'?'production':env(k),fetcher:async()=>{calls++;throw Error('Unexpected')}});const r=await h(request({action:'start',id,access,cart:[]}));assert.equal(r.status,409);assert.equal(calls,0)});
 test('production checkout availability stays closed before any database or gateway call',async()=>{let calls=0;const h=createMerchHandler({env:k=>k==='AUTHORIZENET_ENVIRONMENT'?'production':env(k),fetcher:async()=>{calls++;throw Error('Unexpected')}});const r=await h(request({action:'availability'}));assert.equal(r.status,200);assert.deepEqual(await r.json(),{enabled:false});assert.equal(calls,0)});
+test('production cart holds stay inactive while live checkout is closed',async()=>{let calls=0;const h=createMerchHandler({env:k=>k==='AUTHORIZENET_ENVIRONMENT'?'production':env(k),fetcher:async()=>{calls++;throw Error('Unexpected')}});const r=await h(request({action:'hold',id,access,cart:[{id,size:'S',quantity:1}]}));assert.equal(r.status,200);assert.deepEqual(await r.json(),{held:false});assert.equal(calls,0)});
 test('turning off new production checkout does not block checking an existing order',async()=>{let called=false;const h=createMerchHandler({env:k=>k==='AUTHORIZENET_ENVIRONMENT'?'production':env(k),fetcher:async url=>{called=true;assert.ok(String(url).endsWith('/gac_merch_order_session'));return json({state:'pending',token:'secret-token',total_cents:100})}});const r=await h(request({action:'status',id,access}));assert.equal(r.status,200);assert.equal((await r.json()).state,'pending');assert.ok(called)});
 test('order status never returns a hosted token or proves payment from the return URL',async()=>{const h=createMerchHandler({env,fetcher:async()=>json({state:'pending',token:'secret-token',total_cents:100})});const r=await h(request({action:'status',id,access,paid:true}));const d=await r.json();assert.equal(d.state,'pending');assert.equal(d.token,undefined)});
 
