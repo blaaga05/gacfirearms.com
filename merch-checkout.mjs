@@ -1,6 +1,6 @@
 import {money} from './merch-cart.mjs?v=20261026-sandbox-sync';
 const BASE='https://egrsgfukkramgbibqsbx.supabase.co',KEY='sb_publishable_Vttu1L2cnuQhkrJw0V4rvA_ax4k1S7H';
-const STORAGE='gac-merch-orders-v1',el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e};
+const STORAGE='gac-merch-orders-v1',HOLD_STORAGE='gac-merch-cart-hold-v1',el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e};
 export function merchandiseBreakdown(data){return[
  {label:'Items',amount:data.subtotal_cents},
  {label:data.tax_jurisdiction?data.tax_jurisdiction+' sales tax':'Sales tax',amount:data.tax_cents},
@@ -9,6 +9,12 @@ export function merchandiseBreakdown(data){return[
 ]}
 export function mountMerchCheckout({button,getCart,getAccessToken,onPaid,onStockChanged}){
  let pending=null,pendingHosted=null,busy=false,current=null,polling=false,enabled=false;
+ const newReservation=()=>({id:crypto.randomUUID(),access:[...crypto.getRandomValues(new Uint8Array(32))].map(n=>n.toString(16).padStart(2,'0')).join('')});
+ const readReservation=()=>{try{const saved=JSON.parse(localStorage.getItem(HOLD_STORAGE)||'null');if(saved&&/^[a-f0-9-]{36}$/i.test(saved.id)&&/^[a-f0-9]{64}$/.test(saved.access))return saved}catch{}const fresh=newReservation();try{localStorage.setItem(HOLD_STORAGE,JSON.stringify(fresh))}catch{}return fresh};
+ let reservation=readReservation(),holdQueue=Promise.resolve();
+ function syncCart(cart=getCart()){if(reservation.checkoutStarted)return Promise.resolve({held:true,expires_at:reservation.expires_at});const snapshot=cart.map(({id,size,quantity})=>({id,size,quantity}));holdQueue=holdQueue.catch(()=>{}).then(()=>call({action:'hold',id:reservation.id,access:reservation.access,cart:snapshot})).then(data=>{if(data.expires_at)reservation.expires_at=data.expires_at;else delete reservation.expires_at;try{localStorage.setItem(HOLD_STORAGE,JSON.stringify(reservation))}catch{}return data});return holdQueue;}
+ function rotateReservation(){reservation=newReservation();try{localStorage.setItem(HOLD_STORAGE,JSON.stringify(reservation))}catch{}pending=null;pendingHosted=null;}
+ async function cancelPending(){if(reservation.checkoutStarted){await call({action:'cancel',id:reservation.id,access:reservation.access});const old=reservation.id;try{localStorage.setItem(STORAGE,JSON.stringify(cached().filter(x=>x.id!==old)))}catch{}rotateReservation();await syncCart();}pending=null;pendingHosted=null;}
  const cached=()=>{try{return JSON.parse(localStorage.getItem(STORAGE)||'[]')}catch{return[]}},remember=o=>{try{const safe={id:o.id,access:o.access};const rows=cached().filter(x=>x.id!==safe.id);localStorage.setItem(STORAGE,JSON.stringify([safe,...rows].slice(0,20)))}catch{}};
  const dialog=el('dialog');dialog.className='merch-cart merch-receipt';dialog.setAttribute('aria-labelledby','merchReceiptTitle');
  const title=el('h2','Your merchandise order');title.id='merchReceiptTitle';const info=el('p',''),lines=el('div'),message=el('p',''),refresh=el('button','Refresh payment status'),close=el('button','Continue shopping'),contact=el('a','Contact GAC');
@@ -30,7 +36,7 @@ export function mountMerchCheckout({button,getCart,getAccessToken,onPaid,onStock
  const reviewPanel=el('section');reviewPanel.className='merch-order-review';reviewPanel.hidden=true;reviewPanel.setAttribute('aria-labelledby','merchOrderReviewTitle');const reviewHeading=el('h3','Review order details');reviewHeading.id='merchOrderReviewTitle';const reviewAddress=el('p',''),reviewItems=el('div'),reviewRows=el('div'),reviewStatus=el('p','');reviewStatus.setAttribute('role','status');const reviewActions=el('div');reviewActions.className='merch-receipt-actions';const reviewEdit=el('button','Edit address'),reviewCancel=el('button','Cancel'),reviewPay=el('button','Continue to checkout');reviewEdit.type=reviewCancel.type=reviewPay.type='button';reviewEdit.className=reviewCancel.className='ghost';reviewPay.className='btn';reviewActions.append(reviewEdit,reviewCancel,reviewPay);reviewPanel.append(reviewHeading,reviewAddress,reviewItems,reviewRows,reviewStatus,reviewActions);deliveryDialog.append(deliveryTitle,deliveryNote,deliveryForm,reviewPanel);document.head.append(Object.assign(el('style'),{textContent:'.merch-order-review h3{margin:0 0 12px}.merch-review-line{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:12px 0;border-bottom:1px solid rgba(190,210,190,.24)}.merch-review-line p{margin:0}.merch-review-line small{grid-column:1;color:inherit;opacity:.8}.merch-review-line strong{grid-column:2;grid-row:1 / span 2;align-self:center;white-space:nowrap}.merch-review-totals{margin-top:14px;border-top:1px solid rgba(190,210,190,.35);padding-top:10px}.merch-review-total{display:flex;justify-content:space-between;gap:16px;padding:5px 0}.merch-review-total.grand{font-weight:700;font-size:1.12em;padding-top:12px}' }));document.body.append(deliveryDialog);
  deliveryCancel.onclick=()=>deliveryDialog.close();
  deliveryForm.addEventListener('input',()=>{pending=null;pendingHosted=null;deliveryContinue.textContent='Review order details';deliveryStatus.textContent=''});
- reviewEdit.onclick=()=>{reviewPanel.hidden=true;deliveryForm.hidden=false;deliveryStatus.textContent='';fullName.input.focus()};reviewCancel.onclick=deliveryCancel.onclick=()=>deliveryDialog.close();
+ reviewEdit.onclick=async()=>{reviewEdit.disabled=reviewCancel.disabled=true;try{await cancelPending();reviewPanel.hidden=true;deliveryForm.hidden=false;deliveryStatus.textContent='';fullName.input.focus()}catch(e){reviewStatus.textContent=e.message}finally{reviewEdit.disabled=reviewCancel.disabled=false}};reviewCancel.onclick=async()=>{reviewCancel.disabled=true;try{await cancelPending();deliveryDialog.close()}catch(e){reviewStatus.textContent=e.message}finally{reviewCancel.disabled=false}};
  close.onclick=()=>{dialog.close();clearInterval(pollTimer)};
  async function call(body){
   const headers={apikey:KEY,'Content-Type':'application/json'};if(body.action==='start'&&getAccessToken){const token=await getAccessToken();if(token)headers.Authorization='Bearer '+token;}
@@ -47,6 +53,7 @@ export function mountMerchCheckout({button,getCart,getAccessToken,onPaid,onStock
   lines.append(el('p','Subtotal '+money(d.subtotal_cents||0)+' · Tax '+money(d.tax_cents||0)+' · Shipping '+money(d.shipping_cents||0)+' · Total '+money(d.total_cents||0)));
   message.textContent=d.note||labels[d.state]||'Contact GAC about this order.';
   if(!dialog.open)dialog.showModal();
+  if(['paid','voided','declined','cancelled','refunded','partially_refunded'].includes(d.state)&&current?.id===reservation.id){rotateReservation();queueMicrotask(()=>syncCart().catch(()=>{}));}
   if(d.state==='paid'&&!o.applied){o.applied=true;remember(o);onPaid?.(d.lines||[]);}
   onStockChanged?.();
  }
@@ -67,15 +74,16 @@ export function mountMerchCheckout({button,getCart,getAccessToken,onPaid,onStock
   busy=true;updateButton();deliveryContinue.disabled=true;deliveryStatus.textContent='Verifying delivery location and preparing your order…';
   try{
    if(!cart.length)throw Error('Add an item first.');
-   if(!pending||pending.signature!==signature){const access=[...crypto.getRandomValues(new Uint8Array(32))].map(n=>n.toString(16).padStart(2,'0')).join('');pending={id:crypto.randomUUID(),access,signature};}
-   const d=await call({action:'start',id:pending.id,access:pending.access,cart,shipping});remember(pending);
+   if(!pending||pending.signature!==signature)pending={...reservation,signature};
+   await syncCart(cart);
+   const d=await call({action:'start',id:pending.id,access:pending.access,cart,shipping});reservation.checkoutStarted=true;try{localStorage.setItem(HOLD_STORAGE,JSON.stringify(reservation))}catch{}remember(pending);
    if(!Number.isInteger(d.total_cents)||!Number.isInteger(d.subtotal_cents)||!Number.isInteger(d.shipping_cents)||!Number.isInteger(d.tax_cents))throw Error('The final order total could not be verified.');
    pendingHosted={signature,data:d};renderReview(d,shipping);
   }catch(e){deliveryStatus.textContent=e.message;deliveryContinue.disabled=false;deliveryContinue.textContent='Review order details'}
   finally{busy=false;updateButton()}
  };
  async function loadAvailability(){
-  try{const d=await call({action:'availability'});enabled=d.enabled===true;button.parentElement?.querySelector('[data-checkout-note]')?.remove();const note=el('p',enabled?'Shipping and tax are calculated before payment. Stock is held only after checkout begins.':'Online checkout is being prepared. No payment can be accepted yet.');note.dataset.checkoutNote='';note.className='cart-disclaimer';button.parentElement?.append(note)}
+  try{const d=await call({action:'availability'});enabled=d.enabled===true;button.parentElement?.querySelector('[data-checkout-note]')?.remove();const note=el('p',enabled?'Items in your cart are held for up to 20 minutes. Removing items releases them.':'Online checkout is being prepared. No payment can be accepted yet.');note.dataset.checkoutNote='';note.className='cart-disclaimer';button.parentElement?.append(note)}
   catch{enabled=false}
   updateButton();
  }
@@ -84,5 +92,5 @@ export function mountMerchCheckout({button,getCart,getAccessToken,onPaid,onStock
  const query=new URLSearchParams(location.search),id=query.get('merch_order'),returned=query.has('merch_return');
  if(id||returned){current=id?cached().find(o=>o.id===id):cached()[0];query.delete('merch_order');query.delete('merch_return');query.delete('cancelled');history.replaceState(null,'',location.pathname+(query.size?'?'+query:'')+location.hash);if(current){check();pollTimer=setInterval(check,5000)}else{message.textContent='Open the order in the browser where checkout began, or contact GAC. Returning here does not confirm payment.';dialog.showModal()}}
  void loadAvailability();
- return {update:updateButton};
+ return {update:updateButton,syncCart};
 }
