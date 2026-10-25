@@ -1,6 +1,6 @@
-import {stockFor,stockLabel} from './merch-inventory.mjs?v=20261040-cart-hold-expiry-notice';
-import {CART_KEY,money,safeCart,addItem,charges} from './merch-cart.mjs?v=20261040-cart-hold-expiry-notice';
-import {mountMerchCheckout,merchandiseCartHoldMessage} from './merch-checkout.mjs?v=20261040-cart-hold-expiry-notice';
+import {stockFor,stockLabel} from './merch-inventory.mjs?v=20261041-cart-stock-refresh';
+import {CART_KEY,money,safeCart,addItem,charges} from './merch-cart.mjs?v=20261041-cart-stock-refresh';
+import {mountMerchCheckout,merchandiseCartHoldMessage} from './merch-checkout.mjs?v=20261041-cart-stock-refresh';
 const {createClient}=await import('./assets/supabase-client-2.57.4.mjs');
 const URL='https://yuuagwxqhxiiybwjhome.supabase.co/rest/v1/gac_merch_products?select=id,name,description,price_cents,shipping_cents,sizes,image_path,published,category,price_pending,stock:gac_merch_stock(size,quantity)&published=eq.true&order=sort_order,created_at';
 const KEY='sb_publishable_iYZBPKMeGQlAnst_uXBsRA_V0UL4z8L';
