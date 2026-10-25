@@ -1,4 +1,4 @@
-import {money} from './merch-cart.mjs?v=20261039-cart-expiry-countdown';
+import {money} from './merch-cart.mjs?v=20261040-cart-hold-expiry-notice';
 const BASE='https://egrsgfukkramgbibqsbx.supabase.co',KEY='sb_publishable_Vttu1L2cnuQhkrJw0V4rvA_ax4k1S7H';
 const STORAGE='gac-merch-orders-v1',HOLD_STORAGE='gac-merch-cart-hold-v1',el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e};
 const US_STATES=[['AL','Alabama'],['AK','Alaska'],['AZ','Arizona'],['AR','Arkansas'],['CA','California'],['CO','Colorado'],['CT','Connecticut'],['DE','Delaware'],['DC','District of Columbia'],['FL','Florida'],['GA','Georgia'],['HI','Hawaii'],['ID','Idaho'],['IL','Illinois'],['IN','Indiana'],['IA','Iowa'],['KS','Kansas'],['KY','Kentucky'],['LA','Louisiana'],['ME','Maine'],['MD','Maryland'],['MA','Massachusetts'],['MI','Michigan'],['MN','Minnesota'],['MS','Mississippi'],['MO','Missouri'],['MT','Montana'],['NE','Nebraska'],['NV','Nevada'],['NH','New Hampshire'],['NJ','New Jersey'],['NM','New Mexico'],['NY','New York'],['NC','North Carolina'],['ND','North Dakota'],['OH','Ohio'],['OK','Oklahoma'],['OR','Oregon'],['PA','Pennsylvania'],['RI','Rhode Island'],['SC','South Carolina'],['SD','South Dakota'],['TN','Tennessee'],['TX','Texas'],['UT','Utah'],['VT','Vermont'],['VA','Virginia'],['WA','Washington'],['WV','West Virginia'],['WI','Wisconsin'],['WY','Wyoming']];
@@ -34,6 +34,12 @@ export function formatMerchCheckoutCountdown(expiresAt,now=Date.now()){
  const expires=Date.parse(expiresAt);if(!Number.isFinite(expires))return'--:--';
  const remaining=Math.max(0,Math.ceil((expires-now)/1000)),hours=Math.floor(remaining/3600),minutes=Math.floor((remaining%3600)/60),seconds=remaining%60;
  return(hours?String(hours).padStart(2,'0')+':':'')+String(minutes).padStart(2,'0')+':'+String(seconds).padStart(2,'0');
+}
+export function merchandiseCartHoldMessage(expiresAt,now=Date.now()){
+ const expires=Date.parse(expiresAt);if(!Number.isFinite(expires))return'Your previous secure payment page may still be active. GAC will confirm its status before releasing the reserved stock.';
+ const when=new Date(expires).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+ if(expires>now)return'The items and quantities from your previous secure payment page remain reserved while it is active. Restore that original cart to resume checkout, or wait '+formatMerchCheckoutCountdown(expiresAt,now)+' (about '+when+') for it to expire and for GAC to verify payment status.';
+ return'The previous secure payment page has expired. GAC is verifying whether payment went through; the reserved items will become available when that check is clear.';
 }
 export function mountMerchCheckout({button,getCart,getAccessToken,sendMessage,onPaid,onStockChanged}){
  let pending=null,pendingHosted=null,busy=false,current=null,polling=false,enabled=false,lastOrderState=null,recoveryTimer=null,expiryCountdownTimer=null;

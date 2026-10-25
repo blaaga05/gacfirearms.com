@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createMerchHandler,merchandiseSettings,validateMerchShipping,hash} from '../supabase/functions/gac-merch-checkout/handler.mjs';
-import {merchandiseBreakdown,mayRestartMerchCheckout,merchandiseCartMatches,merchandiseCartMatchesLines,formatAddressCase,normalizeAddressSuggestion,formatMerchCheckoutCountdown} from '../merch-checkout.mjs';
+import {merchandiseBreakdown,mayRestartMerchCheckout,merchandiseCartMatches,merchandiseCartMatchesLines,formatAddressCase,normalizeAddressSuggestion,formatMerchCheckoutCountdown,merchandiseCartHoldMessage} from '../merch-checkout.mjs';
 import {observeTransaction} from '../supabase/functions/gac-payment-recovery/handler.mjs';
 import {createAddressSuggestionsHandler} from '../supabase/functions/gac-address-suggestions/handler.mjs';
 
@@ -22,6 +22,14 @@ test('checkout expiry countdown shows time remaining and clamps at zero',()=>{
  assert.equal(formatMerchCheckoutCountdown(expires,Date.parse('2026-10-25T00:58:00.000Z')),'01:02:00');
  assert.equal(formatMerchCheckoutCountdown(expires,Date.parse('2026-10-25T02:00:00.001Z')),'00:00');
  assert.equal(formatMerchCheckoutCountdown('not-a-date',now),'--:--');
+});
+
+test('cart explains why stock stays reserved while an old hosted payment page may still work',()=>{
+ const expires='2026-10-25T02:00:00.000Z',now=Date.parse('2026-10-25T01:59:15.000Z');
+ const waiting=merchandiseCartHoldMessage(expires,now);
+ assert.match(waiting,/items and quantities.*remain reserved/i);assert.match(waiting,/restore that original cart/i);assert.match(waiting,/00:45/);assert.match(waiting,/verify payment status/i);
+ const expired=merchandiseCartHoldMessage(expires,Date.parse('2026-10-25T02:00:00.001Z'));
+ assert.match(expired,/has expired/i);assert.match(expired,/verifying whether payment went through/i);
 });
 
 test('order review puts calculated tax above the saved shipping charge and includes it in total',()=>{
