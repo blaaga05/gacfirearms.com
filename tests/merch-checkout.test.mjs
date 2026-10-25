@@ -38,6 +38,20 @@ test('guest checkout resolves tax from address and sends the itemized total to A
  assert.equal(d.environment,'sandbox');assert.equal(d.url,'https://test.authorize.net/payment/payment');const hosted=Object.fromEntries(charge.hostedPaymentSettings.setting.map(x=>[x.settingName,JSON.parse(x.settingValue)]));assert.equal(hosted.hostedPaymentShippingAddressOptions.required,false);assert.equal(hosted.hostedPaymentShippingAddressOptions.show,false);assert.equal(hosted.hostedPaymentCustomerOptions.addPaymentProfile,false);assert.equal(hosted.hostedPaymentReturnOptions.url,'https://test.example.invalid/merch-return.html?order='+id);assert.equal(hosted.hostedPaymentReturnOptions.cancelUrl,'https://test.example.invalid/merch-cancel.html?order='+id);assert.ok(!JSON.stringify(d).includes('fixture-key'));
 });
 
+test('hosted checkout failures log only the safe stage and gateway code',async()=>{
+ const errors=[];const h=createMerchHandler({env,logger:{error:(message,details)=>errors.push({message,details})},fetcher:async(url,o)=>{
+  const geocoder=censusRequest(url);if(geocoder)return geocoder;
+  if(String(url).endsWith('/webhooks'))return json([{url:'https://test.supabase.co/functions/v1/gac-authorizenet-webhook',status:'active',eventTypes:['net.authorize.payment.authcapture.created']}]);
+  if(String(url).endsWith('gac_begin_merch_checkout'))return json({id,invoice:'GAM0123456789abcdef0',total_cents:3240});
+  if(String(url).endsWith('gac_merch_order_session'))return json(session());
+  if(String(url).includes('apitest.authorize.net'))return json({messages:{resultCode:'Error',message:[{code:'E00027',text:'Invalid request'}]}});
+  throw Error('Unexpected request');
+ }});
+ const r=await h(request({action:'start',id,access,cart:[{id,size:'S',quantity:1}]}));
+ assert.equal(r.status,409);assert.match((await r.json()).error,/Checkout could not complete/);
+ assert.deepEqual(errors,[{message:'GAC merchandise checkout failed',details:{stage:'authorize-hosted-page',errorName:'Error',gatewayCode:'E00027'}}]);
+});
+
 test('signed-in merchandise checkout links the verified Supabase member to their order',async()=>{
  let attached=false;const h=createMerchHandler({env,fetcher:async(url,o)=>{
   const geocoder=censusRequest(url);if(geocoder)return geocoder;
