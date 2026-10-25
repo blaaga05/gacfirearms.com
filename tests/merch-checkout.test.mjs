@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createMerchHandler,merchandiseSettings,validateMerchShipping,hash} from '../supabase/functions/gac-merch-checkout/handler.mjs';
-import {merchandiseBreakdown} from '../merch-checkout.mjs';
+import {merchandiseBreakdown,mayRestartMerchCheckout,formatAddressCase,normalizeAddressSuggestion} from '../merch-checkout.mjs';
 import {observeTransaction} from '../supabase/functions/gac-payment-recovery/handler.mjs';
+import {createAddressSuggestionsHandler} from '../supabase/functions/gac-address-suggestions/handler.mjs';
 
 const id='11111111-1111-4111-8111-111111111111';
 const access='a'.repeat(64);
@@ -19,6 +20,34 @@ test('order review puts calculated tax above the saved shipping charge and inclu
  const rows=merchandiseBreakdown({subtotal_cents:3000,tax_cents:240,tax_jurisdiction:'Houston',shipping_cents:895,total_cents:4135});
  assert.deepEqual(rows.map(row=>row.label),['Items','Houston sales tax','Shipping','Total']);
  assert.equal(rows[2].amount,895);assert.equal(rows[3].amount,4135);
+});
+
+test('an expired checkout can restart only after verified no-payment status',()=>{
+ const expires_at='2026-10-25T02:14:25.000Z';
+ assert.equal(mayRestartMerchCheckout({state:'expired',expires_at}),false);
+ assert.equal(mayRestartMerchCheckout({state:'expired',expires_at,payment_checked_at:'2026-10-25T02:14:24.999Z'}),false);
+ assert.equal(mayRestartMerchCheckout({state:'expired',expires_at,payment_checked_at:'2026-10-25T02:14:25.000Z'}),true);
+ assert.equal(mayRestartMerchCheckout({state:'expired',expires_at,payment_checked_at:'2026-10-25T02:14:26.000Z',transaction:'9876'}),false);
+ assert.equal(mayRestartMerchCheckout({state:'pending',expires_at,payment_checked_at:'2026-10-25T02:14:26.000Z'}),false);
+ assert.equal(mayRestartMerchCheckout({state:'declined'}),true);
+ assert.equal(mayRestartMerchCheckout({state:'cancelled'}),true);
+});
+
+test('address suggestions fill normalized US address fields and reject non-US results',()=>{
+ const suggestion=normalizeAddressSuggestion({country_code:'us',address_line1:'The Capitol',housenumber:'206',street:'washington street southwest',city:'atlanta',state:'Georgia',state_code:'US-GA',postcode:'30334',formatted:'The Capitol, 206 Washington Street Southwest, Atlanta, GA 30334'});
+ assert.deepEqual(suggestion,{address1:'206 Washington Street Southwest',city:'Atlanta',state:'GA',postal_code:'30334',display:'The Capitol, 206 Washington Street Southwest, Atlanta, GA 30334'});
+ assert.equal(normalizeAddressSuggestion({country_code:'ca',street:'Main Street'}),null);
+ assert.equal(formatAddressCase('123 north main street'),'123 North Main Street');
+});
+
+test('address autocomplete prioritizes street matches and uses typed locality after street number and name',async()=>{
+ let requested;const addressEnv=k=>k==='GEOAPIFY_API_KEY'?'server-only-fixture':k==='GAC_SITE_ORIGIN'?'https://payment-sandbox.gacfirearms-com.pages.dev':env(k);const h=createAddressSuggestionsHandler({env:addressEnv,fetcher:async(url)=>{requested=new URL(url);return new Response(JSON.stringify({results:[{country_code:'us',result_type:'building',housenumber:'209',street:'209 Gleneagle Drive',city:'Wexford Plantation',state:'Georgia',state_code:'GA',postcode:'31008',formatted:'209 Gleneagle Drive, Wexford Plantation, GA 31008'},{country_code:'us',result_type:'amenity',housenumber:'209',street:'Gleneagle Drive',city:'Byron',state:'Georgia',state_code:'GA',postcode:'31008'},{country_code:'us',result_type:'suburb',street:'Gleneagle Drive',city:'Wexford Plantation',state:'Georgia',state_code:'GA',postcode:'31008'},{country_code:'ca',result_type:'building',housenumber:'209',street:'Gleneagle Drive'}]}),{status:200})}});
+ const r=await h(new Request('https://sandbox.example/function',{method:'POST',headers:{origin:'https://payment-sandbox.gacfirearms-com.pages.dev','content-type':'application/json'},body:JSON.stringify({query:'209 Gleneagle Dr, Byron GA 31008'})}));const data=await r.json();
+ assert.equal(r.status,200);assert.equal(data.suggestions.length,1);assert.equal(data.suggestions[0].address_line1,'209 Gleneagle Drive');assert.equal(data.suggestions[0].city,'Byron');assert.equal(data.suggestions[0].formatted,'209 Gleneagle Drive, Byron, GA, 31008');assert.equal(data.suggestions[0].country_code,'us');assert.equal(requested.searchParams.get('text'),'209 Gleneagle Dr');assert.equal(requested.searchParams.get('filter'),'countrycode:us');assert.equal(requested.searchParams.get('apiKey'),'server-only-fixture');assert.ok(!JSON.stringify(data).includes('server-only-fixture'));assert.ok(!JSON.stringify(data).includes('Wexford Plantation'));
+});
+
+test('address suggestions fail softly when no provider key is configured',async()=>{
+ let called=false;const addressEnv=k=>k==='GAC_SITE_ORIGIN'?'https://payment-sandbox.gacfirearms-com.pages.dev':env(k);const h=createAddressSuggestionsHandler({env:addressEnv,fetcher:async()=>{called=true;throw Error('must not call') }});const r=await h(new Request('https://sandbox.example/function',{method:'POST',headers:{origin:'https://payment-sandbox.gacfirearms-com.pages.dev','content-type':'application/json'},body:JSON.stringify({query:'123 Main Street'})}));assert.equal(r.status,503);assert.equal(called,false);
 });
 
 test('cart hold actions reserve the supplied variants and accept an empty cart to release them',async()=>{
