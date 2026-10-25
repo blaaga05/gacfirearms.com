@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {createMerchHandler,merchandiseSettings,validateMerchShipping,hash} from '../supabase/functions/gac-merch-checkout/handler.mjs';
 import {merchandiseBreakdown,mayRestartMerchCheckout,formatAddressCase,normalizeAddressSuggestion} from '../merch-checkout.mjs';
 import {observeTransaction} from '../supabase/functions/gac-payment-recovery/handler.mjs';
+import {createAddressSuggestionsHandler} from '../supabase/functions/gac-address-suggestions/handler.mjs';
 
 const id='11111111-1111-4111-8111-111111111111';
 const access='a'.repeat(64);
@@ -33,10 +34,20 @@ test('an expired checkout can restart only after verified no-payment status',()=
 });
 
 test('address suggestions fill normalized US address fields and reject non-US results',()=>{
- const suggestion=normalizeAddressSuggestion({properties:{countrycode:'US',housenumber:'123',street:'main street',city:'macon',state:'Georgia',postcode:'31201-1234'}});
- assert.deepEqual(suggestion,{address1:'123 Main Street',city:'Macon',state:'GA',postal_code:'31201-1234',display:'123 Main Street, Macon, Georgia, 31201-1234'});
- assert.equal(normalizeAddressSuggestion({properties:{countrycode:'CA',street:'Main Street'}}),null);
+ const suggestion=normalizeAddressSuggestion({country_code:'us',address_line1:'The Capitol',housenumber:'206',street:'washington street southwest',city:'atlanta',state:'Georgia',state_code:'US-GA',postcode:'30334',formatted:'The Capitol, 206 Washington Street Southwest, Atlanta, GA 30334'});
+ assert.deepEqual(suggestion,{address1:'206 Washington Street Southwest',city:'Atlanta',state:'GA',postal_code:'30334',display:'The Capitol, 206 Washington Street Southwest, Atlanta, GA 30334'});
+ assert.equal(normalizeAddressSuggestion({country_code:'ca',street:'Main Street'}),null);
  assert.equal(formatAddressCase('123 north main street'),'123 North Main Street');
+});
+
+test('address suggestion proxy filters results to US and keeps the provider key server-side',async()=>{
+ let requested;const addressEnv=k=>k==='GEOAPIFY_API_KEY'?'server-only-fixture':k==='GAC_SITE_ORIGIN'?'https://payment-sandbox.gacfirearms-com.pages.dev':env(k);const h=createAddressSuggestionsHandler({env:addressEnv,fetcher:async(url)=>{requested=new URL(url);return new Response(JSON.stringify({results:[{country_code:'us',address_line1:'123 Main St',city:'Macon',state:'Georgia',state_code:'GA',postcode:'31201',formatted:'123 Main St, Macon, GA 31201'},{country_code:'ca',address_line1:'9 Main St'}]}),{status:200})}});
+ const r=await h(new Request('https://sandbox.example/function',{method:'POST',headers:{origin:'https://payment-sandbox.gacfirearms-com.pages.dev','content-type':'application/json'},body:JSON.stringify({query:'123 Main Street Macon'})}));const data=await r.json();
+ assert.equal(r.status,200);assert.equal(data.suggestions.length,1);assert.equal(data.suggestions[0].country_code,'us');assert.equal(requested.searchParams.get('filter'),'countrycode:us');assert.equal(requested.searchParams.get('apiKey'),'server-only-fixture');assert.ok(!JSON.stringify(data).includes('server-only-fixture'));
+});
+
+test('address suggestions fail softly when no provider key is configured',async()=>{
+ let called=false;const addressEnv=k=>k==='GAC_SITE_ORIGIN'?'https://payment-sandbox.gacfirearms-com.pages.dev':env(k);const h=createAddressSuggestionsHandler({env:addressEnv,fetcher:async()=>{called=true;throw Error('must not call') }});const r=await h(new Request('https://sandbox.example/function',{method:'POST',headers:{origin:'https://payment-sandbox.gacfirearms-com.pages.dev','content-type':'application/json'},body:JSON.stringify({query:'123 Main Street'})}));assert.equal(r.status,503);assert.equal(called,false);
 });
 
 test('cart hold actions reserve the supplied variants and accept an empty cart to release them',async()=>{
