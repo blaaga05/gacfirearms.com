@@ -15,7 +15,14 @@ export function createAddressSuggestionsHandler({env,fetcher=fetch}){
    const apiKey=env('GEOAPIFY_API_KEY');if(!apiKey)return reply({error:'Address suggestions are not configured yet.'},503);
    const url=new URL('https://api.geoapify.com/v1/geocode/autocomplete');url.searchParams.set('text',query);url.searchParams.set('format','json');url.searchParams.set('limit','5');url.searchParams.set('filter','countrycode:us');url.searchParams.set('apiKey',apiKey);
    const response=await fetcher(url,{signal:AbortSignal.timeout(8000),headers:{Accept:'application/json'}});if(!response.ok)return reply({error:'Address suggestions are temporarily unavailable.'},503);
-   const payload=await response.json();const suggestions=(payload.results||[]).filter(x=>String(x.country_code||'').toLowerCase()==='us').map(x=>({country_code:x.country_code,address_line1:[x.housenumber,x.street].filter(Boolean).join(' ')||x.address_line1,street:x.street,housenumber:x.housenumber,city:x.city||x.town||x.village||x.municipality,state:x.state,state_code:x.state_code,postcode:x.postcode,formatted:x.formatted})).filter(x=>x.address_line1).slice(0,5);
+   const payload=await response.json(),suggestions=[],seen=new Set();
+   for(const x of payload.results||[]){
+    if(String(x.country_code||'').toLowerCase()!=='us')continue;
+    const suggestion={country_code:x.country_code,address_line1:[x.housenumber,x.street].filter(Boolean).join(' ')||x.address_line1,street:x.street,housenumber:x.housenumber,city:x.city||x.town||x.village||x.municipality,state:x.state,state_code:x.state_code,postcode:x.postcode,formatted:x.formatted};
+    if(!suggestion.address_line1)continue;
+    const identity=[suggestion.address_line1,suggestion.city,suggestion.state_code||suggestion.state,suggestion.postcode].map(v=>String(v||'').trim().toLowerCase()).join('|');
+    if(seen.has(identity))continue;seen.add(identity);suggestions.push(suggestion);if(suggestions.length===5)break;
+   }
    return reply({suggestions});
   }catch{return reply({error:'Address suggestions are temporarily unavailable.'},503)}
  };
