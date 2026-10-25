@@ -21,12 +21,18 @@ test('order review puts calculated tax above the saved shipping charge and inclu
  assert.equal(rows[2].amount,895);assert.equal(rows[3].amount,4135);
 });
 
+test('cart hold actions reserve the supplied variants and accept an empty cart to release them',async()=>{
+ let payload;const h=createMerchHandler({env,fetcher:async(url,o)=>{payload=JSON.parse(o.body);return json({held:true,expires_at:'2026-10-27T12:20:00Z'})}});
+ const hold=await h(request({action:'hold',id,access,cart:[{id,size:'S',quantity:2}]}));assert.equal(hold.status,200);assert.equal(payload.p_cart[0].quantity,2);assert.equal(payload.p_access_hash,await hash(access));
+ const release=await h(request({action:'hold',id,access,cart:[]}));assert.equal(release.status,200);assert.deepEqual(JSON.parse(await release.text()),{held:true,expires_at:'2026-10-27T12:20:00Z'});assert.deepEqual(payload.p_cart,[]);
+});
+
 test('guest checkout resolves tax from address and sends the itemized total to Accept Hosted',async()=>{
  let charge,begin;const h=createMerchHandler({env,fetcher:async(url,o)=>{
   const geocoder=censusRequest(url);if(geocoder)return geocoder;
   if(String(url).endsWith('/webhooks'))return json([{url:'https://test.supabase.co/functions/v1/gac-authorizenet-webhook',status:'active',eventTypes:['net.authorize.payment.authcapture.created']}]);
   const b=JSON.parse(o.body);
-  if(String(url).endsWith('gac_begin_merch_checkout')){begin=b;assert.equal(b.p_cart[0].amount,undefined);return json({id,invoice:'GAM0123456789abcdef0',subtotal_cents:3000,shipping_cents:0,tax_cents:240,tax_rate_bps:800,tax_jurisdiction:'Houston',total_cents:3240,expires_at:'2026-10-18T02:00:00Z'})}
+  if(String(url).endsWith('gac_begin_merch_checkout_from_cart')){begin=b;assert.equal(b.p_cart[0].amount,undefined);return json({id,invoice:'GAM0123456789abcdef0',subtotal_cents:3000,shipping_cents:0,tax_cents:240,tax_rate_bps:800,tax_jurisdiction:'Houston',total_cents:3240,expires_at:'2026-10-18T02:00:00Z'})}
   if(String(url).endsWith('gac_merch_order_session'))return json(session());
   if(String(url).includes('apitest.authorize.net')){charge=b.getHostedPaymentPageRequest;return json({messages:{resultCode:'Ok'},token:'fixture-payment-token'})}
   throw Error(url);
@@ -34,7 +40,7 @@ test('guest checkout resolves tax from address and sends the itemized total to A
  const r=await h(request({action:'start',id,access,amount:1,cart:[{id,size:'S',quantity:1,amount:1}]}));const d=await r.json();
  assert.equal(r.status,200);assert.equal(begin.p_tax_bps,800);assert.equal(begin.p_shipping.county,'Houston');assert.equal(begin.p_shipping.district,'county');assert.equal(charge.transactionRequest.amount,'32.40');assert.equal(charge.transactionRequest.payment,undefined);assert.equal(charge.transactionRequest.shipTo.city,'Kathleen');
  assert.deepEqual(charge.transactionRequest.lineItems.lineItem,[{itemId:'97bc4cedadb1462aac3ff4f524e1',name:'GAC Built for Purpose Tee',description:'Size S',quantity:'1',unitPrice:'30.00'}]);
- assert.deepEqual(charge.transactionRequest.tax,{amount:'2.40',name:'Sales tax',description:'Houston sales tax'});assert.equal(charge.transactionRequest.shipping,undefined);assert.equal(d.lines[0].name,'GAC Built for Purpose Tee');
+ assert.deepEqual(charge.transactionRequest.tax,{amount:'2.40',name:'Sales tax',description:'Houston sales tax'});assert.equal(charge.transactionRequest.shipping,undefined);assert.deepEqual(Object.keys(charge.transactionRequest),['transactionType','amount','order','lineItems','tax','shipTo']);assert.equal(d.lines[0].name,'GAC Built for Purpose Tee');
  assert.equal(d.environment,'sandbox');assert.equal(d.url,'https://test.authorize.net/payment/payment');const hosted=Object.fromEntries(charge.hostedPaymentSettings.setting.map(x=>[x.settingName,JSON.parse(x.settingValue)]));assert.equal(hosted.hostedPaymentShippingAddressOptions.required,false);assert.equal(hosted.hostedPaymentShippingAddressOptions.show,false);assert.equal(hosted.hostedPaymentCustomerOptions.addPaymentProfile,false);assert.equal(hosted.hostedPaymentReturnOptions.url,'https://test.example.invalid/merch-return.html?order='+id);assert.equal(hosted.hostedPaymentReturnOptions.cancelUrl,'https://test.example.invalid/merch-cancel.html?order='+id);assert.ok(!JSON.stringify(d).includes('fixture-key'));
 });
 
@@ -42,7 +48,7 @@ test('hosted checkout failures log only the safe stage and gateway code',async()
  const errors=[];const h=createMerchHandler({env,logger:{error:(message,details)=>errors.push({message,details})},fetcher:async(url,o)=>{
   const geocoder=censusRequest(url);if(geocoder)return geocoder;
   if(String(url).endsWith('/webhooks'))return json([{url:'https://test.supabase.co/functions/v1/gac-authorizenet-webhook',status:'active',eventTypes:['net.authorize.payment.authcapture.created']}]);
-  if(String(url).endsWith('gac_begin_merch_checkout'))return json({id,invoice:'GAM0123456789abcdef0',total_cents:3240});
+  if(String(url).endsWith('gac_begin_merch_checkout_from_cart'))return json({id,invoice:'GAM0123456789abcdef0',total_cents:3240});
   if(String(url).endsWith('gac_merch_order_session'))return json(session());
   if(String(url).includes('apitest.authorize.net'))return json({messages:{resultCode:'Error',message:[{code:'E00027',text:'Invalid request'}]}});
   throw Error('Unexpected request');
@@ -57,7 +63,7 @@ test('signed-in merchandise checkout links the verified Supabase member to their
   const geocoder=censusRequest(url);if(geocoder)return geocoder;
   if(String(url).endsWith('/webhooks'))return json([{url:'https://test.supabase.co/functions/v1/gac-authorizenet-webhook',status:'active',eventTypes:['net.authorize.payment.authcapture.created']}]);
   if(String(url).endsWith('/auth/v1/user')){assert.equal(o.headers.Authorization,'Bearer member-session');return json({id:'22222222-2222-4222-8222-222222222222'})}
-  if(String(url).endsWith('gac_begin_merch_checkout'))return json({id,invoice:'GAM0123456789abcdef0',subtotal_cents:3000,shipping_cents:0,tax_cents:240,total_cents:3240,expires_at:'2026-10-18T02:00:00Z'});
+  if(String(url).endsWith('gac_begin_merch_checkout_from_cart'))return json({id,invoice:'GAM0123456789abcdef0',subtotal_cents:3000,shipping_cents:0,tax_cents:240,total_cents:3240,expires_at:'2026-10-18T02:00:00Z'});
   if(String(url).endsWith('gac_attach_merch_customer')){attached=true;assert.deepEqual(JSON.parse(o.body),{p_id:id,p_access_hash:await hash(access),p_user_id:'22222222-2222-4222-8222-222222222222'});return json(null)}
   if(String(url).endsWith('gac_merch_order_session'))return json(session());
   if(String(url).includes('apitest.authorize.net'))return json({messages:{resultCode:'Ok'},token:'fixture-payment-token'});
