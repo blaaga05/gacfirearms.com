@@ -1,0 +1,33 @@
+name: Cloudflare Pages sandbox check
+
+on:
+  push:
+    branches: [payment-sandbox]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-sandbox-site:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Confirm Cloudflare is serving this sandbox update
+        env:
+          SITE_URL: https://payment-sandbox.gacfirearms-com.pages.dev/
+          DEPLOY_MARKER: 20261026-sandbox-sync
+        run: |
+          for attempt in $(seq 1 30); do
+            page=$(curl --silent --show-error --fail --max-time 20 \
+              -H 'Cache-Control: no-cache' \
+              "${SITE_URL}?gac-deploy-check=${GITHUB_SHA}" 2>/dev/null || true)
+            if printf '%s' "$page" | grep -Fq "$DEPLOY_MARKER"; then
+              echo "Cloudflare is serving sandbox marker $DEPLOY_MARKER."
+              exit 0
+            fi
+            echo "Waiting for the sandbox deployment ($attempt/30)."
+            sleep 15
+          done
+          echo "Cloudflare did not serve $DEPLOY_MARKER within the deployment window."
+          exit 1
