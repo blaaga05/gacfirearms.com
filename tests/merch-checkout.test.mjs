@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createMerchHandler,merchandiseSettings,validateMerchShipping,hash} from '../supabase/functions/gac-merch-checkout/handler.mjs';
-import {merchandiseBreakdown,mayRestartMerchCheckout,merchandiseCartMatches,merchandiseCartMatchesLines,formatAddressCase,normalizeAddressSuggestion} from '../merch-checkout.mjs';
+import {merchandiseBreakdown,mayRestartMerchCheckout,merchandiseCartMatches,merchandiseCartMatchesLines,formatAddressCase,normalizeAddressSuggestion,formatMerchCheckoutCountdown} from '../merch-checkout.mjs';
 import {observeTransaction} from '../supabase/functions/gac-payment-recovery/handler.mjs';
 import {createAddressSuggestionsHandler} from '../supabase/functions/gac-address-suggestions/handler.mjs';
 
@@ -15,6 +15,14 @@ const census=()=>json({result:{addressMatches:[{matchedAddress:'123 MAIN ST, KAT
 const request=b=>new Request('https://test.example.invalid/checkout',{method:'POST',headers:{origin:'https://test.example.invalid','content-type':'application/json'},body:JSON.stringify({shipping:address,...b})});
 const session=()=>({token:null,lines,subtotal_cents:3000,shipping_cents:0,tax_cents:240,tax_rate_bps:800,tax_jurisdiction:'Houston',total_cents:3240,expires_at:'2026-10-18T02:00:00Z'});
 const censusRequest=url=>String(url).startsWith('https://geocoding.geo.census.gov')?census():null;
+
+test('checkout expiry countdown shows time remaining and clamps at zero',()=>{
+ const expires='2026-10-25T02:00:00.000Z',now=Date.parse('2026-10-25T01:59:08.000Z');
+ assert.equal(formatMerchCheckoutCountdown(expires,now),'00:52');
+ assert.equal(formatMerchCheckoutCountdown(expires,Date.parse('2026-10-25T00:58:00.000Z')),'01:02:00');
+ assert.equal(formatMerchCheckoutCountdown(expires,Date.parse('2026-10-25T02:00:00.001Z')),'00:00');
+ assert.equal(formatMerchCheckoutCountdown('not-a-date',now),'--:--');
+});
 
 test('order review puts calculated tax above the saved shipping charge and includes it in total',()=>{
  const rows=merchandiseBreakdown({subtotal_cents:3000,tax_cents:240,tax_jurisdiction:'Houston',shipping_cents:895,total_cents:4135});
