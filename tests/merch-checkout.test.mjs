@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createMerchHandler,merchandiseSettings,validateMerchShipping,hash} from '../supabase/functions/gac-merch-checkout/handler.mjs';
-import {merchandiseBreakdown,mayRestartMerchCheckout,formatAddressCase,normalizeAddressSuggestion} from '../merch-checkout.mjs';
+import {merchandiseBreakdown,mayRestartMerchCheckout,merchandiseCartMatches,merchandiseCartMatchesLines,formatAddressCase,normalizeAddressSuggestion} from '../merch-checkout.mjs';
 import {observeTransaction} from '../supabase/functions/gac-payment-recovery/handler.mjs';
 import {createAddressSuggestionsHandler} from '../supabase/functions/gac-address-suggestions/handler.mjs';
 
@@ -31,6 +31,12 @@ test('an expired checkout can restart only after verified no-payment status',()=
  assert.equal(mayRestartMerchCheckout({state:'pending',expires_at,payment_checked_at:'2026-10-25T02:14:26.000Z'}),false);
  assert.equal(mayRestartMerchCheckout({state:'declined'}),true);
  assert.equal(mayRestartMerchCheckout({state:'cancelled'}),true);
+});
+
+test('cart comparison ignores line ordering but detects a real quantity change',()=>{
+ const first=[{id:'22222222-2222-4222-8222-222222222222',size:'M',quantity:1},{id:'11111111-1111-4111-8111-111111111111',size:'L',quantity:2}];
+ const reordered=[first[1],first[0]];assert.equal(merchandiseCartMatches(first,reordered),true);assert.equal(merchandiseCartMatches(first,[{...first[0],quantity:3},first[1]]),false);assert.equal(merchandiseCartMatches(first,[]),false);
+ assert.equal(merchandiseCartMatchesLines(first,[{...first[0],name:'Item A',unit_cents:100},{...first[1],name:'Item B',unit_cents:200}]),true);
 });
 
 test('address suggestions fill normalized US address fields and reject non-US results',()=>{
@@ -82,6 +88,10 @@ test('order review creates a reserved quote without generating a hosted payment 
   if(String(url).includes('apitest.authorize.net')){hosted=true;throw Error('Review must not call Authorize.Net hosted payments');}
   throw Error(url);
  }});const r=await h(request({action:'review',id,access,cart:[{id,size:'S',quantity:1}]}));const d=await r.json();assert.equal(r.status,200);assert.equal(d.total_cents,3240);assert.equal(d.lines[0].name,'GAC Built for Purpose Tee');assert.ok(!d.token);assert.equal(hosted,false);
+});
+
+test('resume restores the saved address and order without exposing a hosted token',async()=>{
+ let called=false;const h=createMerchHandler({env,fetcher:async(url)=>{called=true;assert.ok(String(url).endsWith('gac_merch_order_review_session'));return json({...session(),id,state:'pending',shipping:{...address,tax_rate_bps:800,tax_jurisdiction:'Houston'},token:'never-return-this'})}});const r=await h(request({action:'resume',id,access}));const d=await r.json();assert.equal(r.status,200);assert.deepEqual(d.shipping,{...address,tax_rate_bps:800,tax_jurisdiction:'Houston'});assert.equal(d.state,'pending');assert.equal(d.token,undefined);assert.ok(called);
 });
 
 test('cancel action reports whether an unsubmitted review can safely be released',async()=>{
