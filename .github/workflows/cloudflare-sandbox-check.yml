@@ -16,7 +16,7 @@ jobs:
       - name: Confirm Cloudflare is serving this sandbox update
         env:
           SITE_URL: https://payment-sandbox.gacfirearms-com.pages.dev/
-          DEPLOY_MARKER: 20261040-cart-hold-expiry-notice
+          DEPLOY_MARKER: 20261041-cart-stock-refresh
         run: |
           for attempt in $(seq 1 30); do
             page=$(curl --silent --show-error --fail --max-time 20 \
