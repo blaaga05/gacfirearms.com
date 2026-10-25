@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createMerchHandler,merchandiseSettings,validateMerchShipping,hash} from '../supabase/functions/gac-merch-checkout/handler.mjs';
+import {merchandiseBreakdown} from '../merch-checkout.mjs';
 import {observeTransaction} from '../supabase/functions/gac-payment-recovery/handler.mjs';
 
 const id='11111111-1111-4111-8111-111111111111';
@@ -13,6 +14,12 @@ const census=()=>json({result:{addressMatches:[{matchedAddress:'123 MAIN ST, KAT
 const request=b=>new Request('https://test.example.invalid/checkout',{method:'POST',headers:{origin:'https://test.example.invalid','content-type':'application/json'},body:JSON.stringify({shipping:address,...b})});
 const session=()=>({token:null,lines,subtotal_cents:3000,shipping_cents:0,tax_cents:240,tax_rate_bps:800,tax_jurisdiction:'Houston',total_cents:3240,expires_at:'2026-10-18T02:00:00Z'});
 const censusRequest=url=>String(url).startsWith('https://geocoding.geo.census.gov')?census():null;
+
+test('order review puts calculated tax above the saved shipping charge and includes it in total',()=>{
+ const rows=merchandiseBreakdown({subtotal_cents:3000,tax_cents:240,tax_jurisdiction:'Houston',shipping_cents:895,total_cents:4135});
+ assert.deepEqual(rows.map(row=>row.label),['Items','Houston sales tax','Shipping','Total']);
+ assert.equal(rows[2].amount,895);assert.equal(rows[3].amount,4135);
+});
 
 test('guest checkout resolves tax from address and sends the itemized total to Accept Hosted',async()=>{
  let charge,begin;const h=createMerchHandler({env,fetcher:async(url,o)=>{
