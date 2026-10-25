@@ -1,4 +1,4 @@
-import {money} from './merch-cart.mjs?v=20261026-sandbox-sync';
+import {money} from './merch-cart.mjs?v=20261030-expired-reservation-recovery';
 const BASE='https://egrsgfukkramgbibqsbx.supabase.co',KEY='sb_publishable_Vttu1L2cnuQhkrJw0V4rvA_ax4k1S7H';
 const STORAGE='gac-merch-orders-v1',HOLD_STORAGE='gac-merch-cart-hold-v1',el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e};
 export function merchandiseBreakdown(data){return[
@@ -7,6 +7,12 @@ export function merchandiseBreakdown(data){return[
  {label:'Shipping',amount:data.shipping_cents},
  {label:'Total',amount:data.total_cents,total:true}
 ]}
+export function mayRestartMerchCheckout(data){
+ if(['cancelled','declined','voided','refunded','partially_refunded'].includes(data?.state))return true;
+ if(data?.state!=='expired'||data.transaction)return false;
+ const expires=Date.parse(data.expires_at),checked=Date.parse(data.payment_checked_at);
+ return Number.isFinite(expires)&&Number.isFinite(checked)&&checked>=expires;
+}
 export function mountMerchCheckout({button,getCart,getAccessToken,sendMessage,onPaid,onStockChanged}){
  let pending=null,pendingHosted=null,busy=false,current=null,polling=false,enabled=false,lastOrderState=null;
  const newReservation=()=>({id:crypto.randomUUID(),access:[...crypto.getRandomValues(new Uint8Array(32))].map(n=>n.toString(16).padStart(2,'0')).join('')});
@@ -15,6 +21,7 @@ export function mountMerchCheckout({button,getCart,getAccessToken,sendMessage,on
  function syncCart(cart=getCart()){if(reservation.checkoutStarted)return Promise.resolve({held:true,expires_at:reservation.expires_at});const snapshot=cart.map(({id,size,quantity})=>({id,size,quantity}));holdQueue=holdQueue.catch(()=>{}).then(()=>call({action:'hold',id:reservation.id,access:reservation.access,cart:snapshot})).then(data=>{if(data.expires_at)reservation.expires_at=data.expires_at;else delete reservation.expires_at;try{localStorage.setItem(HOLD_STORAGE,JSON.stringify(reservation))}catch{}return data});return holdQueue;}
  function rotateReservation(){reservation=newReservation();try{localStorage.setItem(HOLD_STORAGE,JSON.stringify(reservation))}catch{}pending=null;pendingHosted=null;}
  async function cancelPending(){if(reservation.checkoutStarted){await call({action:'cancel',id:reservation.id,access:reservation.access});const old=reservation.id;try{localStorage.setItem(STORAGE,JSON.stringify(cached().filter(x=>x.id!==old)))}catch{}rotateReservation();await syncCart();}pending=null;pendingHosted=null;}
+ async function ensureFreshReservation(){if(!reservation.checkoutStarted)return;const previous=await call({action:'status',id:reservation.id,access:reservation.access});if(!mayRestartMerchCheckout(previous)){if(previous.state==='paid'||previous.state==='review')throw Error('Your previous payment is still being processed. Refresh its status before starting another checkout.');if(previous.state==='pending')throw Error('Your previous checkout is still active or being verified. Wait for its status to update before trying again.');throw Error('The previous checkout could not be safely cleared yet. Refresh its payment status or contact GAC before trying again.')}try{localStorage.setItem(STORAGE,JSON.stringify(cached().filter(x=>x.id!==reservation.id)))}catch{}rotateReservation();}
  const cached=()=>{try{return JSON.parse(localStorage.getItem(STORAGE)||'[]')}catch{return[]}},remember=o=>{try{const safe={id:o.id,access:o.access};const rows=cached().filter(x=>x.id!==safe.id);localStorage.setItem(STORAGE,JSON.stringify([safe,...rows].slice(0,20)))}catch{}};
  const dialog=el('dialog');dialog.className='merch-cart merch-receipt';dialog.setAttribute('aria-labelledby','merchReceiptTitle');
  const title=el('h2','Your merchandise order');title.id='merchReceiptTitle';const info=el('p',''),lines=el('div'),message=el('p',''),refresh=el('button','Refresh payment status'),refreshStatus=el('p',''),close=el('button','Continue shopping'),contact=el('button','Contact GAC');
@@ -79,6 +86,7 @@ export function mountMerchCheckout({button,getCart,getAccessToken,sendMessage,on
   busy=true;updateButton();deliveryContinue.disabled=true;deliveryStatus.textContent='Verifying delivery location and preparing your order…';
   try{
    if(!cart.length)throw Error('Add an item first.');
+   await ensureFreshReservation();
    if(!pending||pending.signature!==signature)pending={...reservation,signature};
    await syncCart(cart);
    const d=await call({action:'start',id:pending.id,access:pending.access,cart,shipping});reservation.checkoutStarted=true;try{localStorage.setItem(HOLD_STORAGE,JSON.stringify(reservation))}catch{}remember(pending);

@@ -1,6 +1,6 @@
-import {stockFor,stockLabel} from './merch-inventory.mjs?v=20261029-guest-email-contact';
-import {CART_KEY,money,safeCart,addItem,charges} from './merch-cart.mjs?v=20261029-guest-email-contact';
-import {mountMerchCheckout} from './merch-checkout.mjs?v=20261029-guest-email-contact';
+import {stockFor,stockLabel} from './merch-inventory.mjs?v=20261030-expired-reservation-recovery';
+import {CART_KEY,money,safeCart,addItem,charges} from './merch-cart.mjs?v=20261030-expired-reservation-recovery';
+import {mountMerchCheckout} from './merch-checkout.mjs?v=20261030-expired-reservation-recovery';
 const {createClient}=await import('./assets/supabase-client-2.57.4.mjs');
 const URL='https://egrsgfukkramgbibqsbx.supabase.co/rest/v1/gac_merch_products?select=id,name,description,price_cents,shipping_cents,sizes,image_path,published,category,price_pending,stock:gac_merch_stock(size,quantity)&published=eq.true&order=sort_order,created_at';
 const KEY='sb_publishable_Vttu1L2cnuQhkrJw0V4rvA_ax4k1S7H';
@@ -10,7 +10,7 @@ let products=[],cart=[],loaded=false,loading=null,previousFocus,checkout;
 const dialog=$('merchCart'),items=$('merchCartItems'),status=$('merchStatus');
 function rawCart(){try{return JSON.parse(localStorage.getItem(CART_KEY)||'[]')}catch{return []}}
 function hasActiveCartHold(){try{return Date.parse(JSON.parse(localStorage.getItem('gac-merch-cart-hold-v1')||'{}').expires_at)>Date.now()}catch{return false}}
-function save(syncHold=true){try{localStorage.setItem(CART_KEY,JSON.stringify(cart));$('merchCartNotice').textContent='Your cart is saved on this browser. Items are held for up to 20 minutes; removing them releases the hold.'}catch{$('merchCartNotice').textContent='Browser storage is unavailable. Your cart will last until this page is closed.'}updateCount();if(syncHold)checkout?.syncCart(cart).catch(error=>{status.textContent=error.message})}
+function save(syncHold=true){try{localStorage.setItem(CART_KEY,JSON.stringify(cart));$('merchCartNotice').textContent='Your cart is saved on this browser. Availability is confirmed when checkout is available.'}catch{$('merchCartNotice').textContent='Browser storage is unavailable. Your cart will last until this page is closed.'}updateCount();if(syncHold)checkout?.syncCart(cart).catch(error=>{status.textContent=error.message})}
 function updateCount(){const n=cart.reduce((a,x)=>a+x.quantity,0);$('merchCartCount').textContent=String(n);$('merchCartOpen').setAttribute('aria-label','Open shopping cart, '+n+' items');checkout?.update()}
 function picture(p){const i=el('img');i.src=p.image_path;i.alt=p.name;i.loading='lazy';i.onerror=()=>{i.hidden=true};return i}
 async function applyReservedAvailability(data){
