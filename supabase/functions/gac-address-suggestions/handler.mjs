@@ -10,6 +10,14 @@ function typedCity(query){
  if(name){tail=tail.replace(new RegExp(`(?:^|\\s)${name.replaceAll(' ','\\s+')}\\s*$`,'i'),'').trim();return tail||parts.at(-2)||''}
  return tail;
 }
+function stateCode(value){
+ const normalized=String(value||'').trim();const short=normalized.match(/\b([A-Z]{2})$/i)?.[1]?.toUpperCase();if(short&&stateCodes.has(short))return short;
+ const index=stateNames.findIndex(name=>name.toLowerCase()===normalized.toLowerCase());return index<0?'':['AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'][index];
+}
+function searchParts(query){
+ const parts=String(query||'').split(',').map(part=>part.trim()).filter(Boolean),street=parts[0]||String(query||'').trim(),context=parts.slice(1).join(' '),zip=context.match(/\b\d{5}(?:-\d{4})?\b/)?.[0]||'',state=stateNames.find(name=>new RegExp(`\\b${name.replaceAll(' ','\\s+')}\\b`,'i').test(context))||context.match(/\b(?:AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)\b/i)?.[0]||'';
+ return{street,city:typedCity(query),state:stateCode(state),zip,house:(street.match(/^\s*(\d+[a-z]?(?:[/-]\d+[a-z]?)?)/i)||[])[1]||''};
+}
 
 export function createAddressSuggestionsHandler({env,fetcher=fetch}){
  return async req=>{
@@ -22,15 +30,19 @@ export function createAddressSuggestionsHandler({env,fetcher=fetch}){
   try{
    const text=await req.text();if(text.length>500)return reply({error:'Search text is too long'},413);
    let body;try{body=JSON.parse(text)}catch{return reply({error:'Invalid request'},400)}
-   const query=clean(body.query,120);if(query.length<4)return reply({suggestions:[]});
+   const query=clean(body.query,120);if(query.length<4)return reply({suggestions:[]});const parts=searchParts(query);
    const apiKey=env('GEOAPIFY_API_KEY');if(!apiKey)return reply({error:'Address suggestions are not configured yet.'},503);
-   const url=new URL('https://api.geoapify.com/v1/geocode/autocomplete');url.searchParams.set('text',query);url.searchParams.set('type','street');url.searchParams.set('format','json');url.searchParams.set('limit','10');url.searchParams.set('filter','countrycode:us');url.searchParams.set('apiKey',apiKey);
+   const url=new URL('https://api.geoapify.com/v1/geocode/autocomplete');url.searchParams.set('text',parts.street);url.searchParams.set('format','json');url.searchParams.set('limit','20');url.searchParams.set('filter','countrycode:us');url.searchParams.set('apiKey',apiKey);
    const response=await fetcher(url,{signal:AbortSignal.timeout(8000),headers:{Accept:'application/json'}});if(!response.ok)return reply({error:'Address suggestions are temporarily unavailable.'},503);
    const payload=await response.json(),suggestions=[],seen=new Set();
    for(const x of payload.results||[]){
     if(String(x.country_code||'').toLowerCase()!=='us'||!['building','street'].includes(String(x.result_type||'').toLowerCase())||!String(x.street||'').trim())continue;
-    const city=typedCity(query)||x.city||x.town||x.village||x.municipality;
-    const suggestion={country_code:x.country_code,address_line1:[x.housenumber,x.street].filter(Boolean).join(' ')||x.address_line1,street:x.street,housenumber:x.housenumber,city,state:x.state,state_code:x.state_code,postcode:x.postcode,formatted:[ [x.housenumber,x.street].filter(Boolean).join(' ')||x.address_line1,city,x.state_code||x.state,x.postcode].filter(Boolean).join(', ')};
+    if(parts.house&&!String(x.housenumber||'').toLowerCase().startsWith(parts.house.toLowerCase()))continue;
+    const resultState=stateCode(x.state_code||x.state);if(parts.state&&resultState&&parts.state!==resultState)continue;
+    const resultZip=String(x.postcode||'').match(/\b\d{5}(?:-\d{4})?\b/)?.[0]||'';if(parts.zip&&resultZip&&parts.zip.slice(0,5)!==resultZip.slice(0,5))continue;
+    const rawStreet=String(x.street||'').trim(),house=String(x.housenumber||'').trim(),street=house&&(rawStreet.toLowerCase()===house.toLowerCase()||rawStreet.toLowerCase().startsWith(house.toLowerCase()+' '))?rawStreet.slice(house.length).trim():rawStreet;
+    const resultCity=x.city||x.town||x.village||x.municipality,city=parts.city&&parts.state&&parts.zip&&(!resultState||parts.state===resultState)&&(!resultZip||parts.zip.slice(0,5)===resultZip.slice(0,5))?parts.city:resultCity,address1=[house,street].filter(Boolean).join(' ')||x.address_line1;
+    const suggestion={country_code:x.country_code,address_line1:address1,street,housenumber:house,city,state:x.state,state_code:x.state_code,postcode:x.postcode,formatted:[address1,city,x.state_code||x.state,x.postcode].filter(Boolean).join(', ')};
     if(!suggestion.address_line1)continue;
     const identity=[suggestion.address_line1,suggestion.city,suggestion.state_code||suggestion.state,suggestion.postcode].map(v=>String(v||'').trim().toLowerCase()).join('|');
     if(seen.has(identity))continue;seen.add(identity);suggestions.push(suggestion);if(suggestions.length===5)break;
