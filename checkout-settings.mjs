@@ -1,6 +1,5 @@
 export function mountCheckoutSettings({client,mount,action,status,onChanged=()=>{}}){
  let member=null,owner=false,enabled=false,epoch=0,loading=false,merchEnabled=false,merchReady=false;
- const sandbox=location.hostname==='payment-sandbox.gacfirearms-com.pages.dev';
  const el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
  const root=el('section');root.hidden=true;root.className='payment-controls';
  root.append(el('h3','Checkout controls'));
@@ -15,8 +14,8 @@ export function mountCheckoutSettings({client,mount,action,status,onChanged=()=>
  }
  function render(){root.hidden=!owner;paint(memberControl,enabled);paint(merchControl,merchEnabled,merchReady);onChanged(enabled);}
  async function reload(){if(!member||loading)return;loading=true;const v=epoch;try{
- const results=await Promise.allSettled([client.rpc('gac_checkout_enabled'),owner&&sandbox?client.rpc('gac_owner_merch_checkout',{}):Promise.resolve({data:false,error:null})]);
- if(v!==epoch)return;const m=results[0],p=results[1];enabled=m.status==='fulfilled'&&!m.value.error&&m.value.data===true;merchReady=owner&&sandbox&&p.status==='fulfilled'&&!p.value.error;merchEnabled=merchReady&&p.value.data===true;
+ const results=await Promise.allSettled([client.rpc('gac_checkout_enabled'),owner?client.rpc('gac_owner_merch_checkout',{}):Promise.resolve({data:false,error:null})]);
+ if(v!==epoch)return;const m=results[0],p=results[1];enabled=m.status==='fulfilled'&&!m.value.error&&m.value.data===true;merchReady=owner&&p.status==='fulfilled'&&!p.value.error;merchEnabled=merchReady&&p.value.data===true;
  }finally{if(v===epoch){loading=false;render();}}}
  async function change(kind){if(!owner)throw Error('Owner access required');if(kind==='merch'&&!merchReady)throw Error('Merchandise checkout is not ready');
  const v=epoch;loading=true;render();try{const isMerch=kind==='merch';const{data,error}=await client.rpc(isMerch?'gac_owner_merch_checkout':'gac_owner_set_checkout_enabled',{p_enabled:!(isMerch?merchEnabled:enabled)});if(error)throw error;if(v!==epoch||!owner)return;if(isMerch)merchEnabled=data===true;else enabled=data===true;
