@@ -1,4 +1,4 @@
-import {money} from './merch-cart.mjs?v=20261041-cart-stock-refresh';
+import {money} from './merch-cart.mjs?v=20261026-merch-payment-return-reconcile';
 const BASE='https://yuuagwxqhxiiybwjhome.supabase.co',KEY='sb_publishable_iYZBPKMeGQlAnst_uXBsRA_V0UL4z8L';
 const STORAGE='gac-merch-orders-v1',HOLD_STORAGE='gac-merch-cart-hold-v1',el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e};
 const US_STATES=[['AL','Alabama'],['AK','Alaska'],['AZ','Arizona'],['AR','Arkansas'],['CA','California'],['CO','Colorado'],['CT','Connecticut'],['DE','Delaware'],['DC','District of Columbia'],['FL','Florida'],['GA','Georgia'],['HI','Hawaii'],['ID','Idaho'],['IL','Illinois'],['IN','Indiana'],['IA','Iowa'],['KS','Kansas'],['KY','Kentucky'],['LA','Louisiana'],['ME','Maine'],['MD','Maryland'],['MA','Massachusetts'],['MI','Michigan'],['MN','Minnesota'],['MS','Mississippi'],['MO','Missouri'],['MT','Montana'],['NE','Nebraska'],['NV','Nevada'],['NH','New Hampshire'],['NJ','New Jersey'],['NM','New Mexico'],['NY','New York'],['NC','North Carolina'],['ND','North Dakota'],['OH','Ohio'],['OK','Oklahoma'],['OR','Oregon'],['PA','Pennsylvania'],['RI','Rhode Island'],['SC','South Carolina'],['SD','South Dakota'],['TN','Tennessee'],['TX','Texas'],['UT','Utah'],['VT','Vermont'],['VA','Virginia'],['WA','Washington'],['WV','West Virginia'],['WI','Wisconsin'],['WY','Wyoming']];
@@ -85,7 +85,7 @@ export function mountMerchCheckout({button,getCart,getAccessToken,sendMessage,on
  deliveryCancel.onclick=()=>deliveryDialog.close();
  deliveryForm.addEventListener('input',()=>{pending=null;pendingHosted=null;deliveryContinue.textContent='Review order details';deliveryStatus.textContent=''});
  reviewEdit.onclick=async()=>{reviewEdit.disabled=reviewCancel.disabled=true;try{await cancelPending();reviewPanel.hidden=true;deliveryForm.hidden=false;deliveryStatus.textContent='';fullName.input.focus()}catch(e){reviewStatus.textContent=e.message}finally{reviewEdit.disabled=reviewCancel.disabled=false}};reviewCancel.onclick=async()=>{reviewCancel.disabled=true;try{await cancelPending()}catch{}finally{deliveryDialog.close();reviewCancel.disabled=false}};
- close.onclick=()=>{dialog.close();clearInterval(pollTimer)};
+ close.onclick=()=>{dialog.close()};
  async function call(body){
   const headers={apikey:KEY,'Content-Type':'application/json'};if(body.action==='start'&&getAccessToken){const token=await getAccessToken();if(token)headers.Authorization='Bearer '+token;}
   const r=await fetch(BASE+'/functions/v1/gac-merch-checkout',{method:'POST',headers,body:JSON.stringify(body),signal:AbortSignal.timeout(30000),cache:'no-store'});
@@ -105,7 +105,13 @@ export function mountMerchCheckout({button,getCart,getAccessToken,sendMessage,on
   if(d.state==='paid'&&!o.applied){o.applied=true;remember(o);onPaid?.(d.lines||[]);}
   onStockChanged?.();
  }
- async function check(manual=false){if(!current){if(manual)refreshStatus.textContent='No merchandise order is selected.';return}if(polling){if(manual)refreshStatus.textContent='A payment status check is already in progress.';return}if(document.hidden){if(manual)refreshStatus.textContent='Status check paused while this page is in the background.';return}polling=true;if(manual){refresh.disabled=true;refresh.textContent='Checking…';refreshStatus.textContent='Checking the latest payment status…'}const previous=lastOrderState;try{const d=await call({action:'status',id:current.id,access:current.access});show(current,d);if(manual){const time=new Date().toLocaleTimeString();refreshStatus.textContent=previous&&previous!==d.state?'Status updated to '+String(d.state).replaceAll('_',' ')+'. Checked '+time+'.':'Checked '+time+'. Current status: '+String(d.state||'unknown').replaceAll('_',' ')+'.'}if(['paid','voided','declined','cancelled','refunded','partially_refunded'].includes(d.state))clearInterval(pollTimer)}catch(e){message.textContent=e.message;refreshStatus.textContent='Could not refresh payment status. '+e.message;if(!dialog.open)dialog.showModal()}finally{polling=false;if(manual){refresh.disabled=false;refresh.textContent='Refresh payment status'}}}
+ const terminalStates=['paid','voided','declined','cancelled','refunded','partially_refunded'];
+ function stopPolling(){clearInterval(pollTimer);pollTimer=null}
+ function startPolling(){if(current&&!terminalStates.includes(lastOrderState)&&!pollTimer)pollTimer=setInterval(()=>check(),5000)}
+ async function check(manual=false){if(!current){if(manual)refreshStatus.textContent='No merchandise order is selected.';return}if(polling){if(manual)refreshStatus.textContent='A payment status check is already in progress.';return}if(document.hidden){if(manual)refreshStatus.textContent='Status check paused while this page is in the background.';return}polling=true;if(manual){refresh.disabled=true;refresh.textContent='Checking…';refreshStatus.textContent='Checking the latest payment status…'}const previous=lastOrderState;try{const d=await call({action:'status',id:current.id,access:current.access});show(current,d);if(manual){const time=new Date().toLocaleTimeString();refreshStatus.textContent=previous&&previous!==d.state?'Status updated to '+String(d.state).replaceAll('_',' ')+'. Checked '+time+'.':'Checked '+time+'. Current status: '+String(d.state||'unknown').replaceAll('_',' ')+'.'}if(terminalStates.includes(d.state))stopPolling();else startPolling()}catch(e){message.textContent=e.message;refreshStatus.textContent='Could not refresh payment status. '+e.message;if(!dialog.open)dialog.showModal()}finally{polling=false;if(manual){refresh.disabled=false;refresh.textContent='Refresh payment status'}}}
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&current){void check();startPolling()}});
+ addEventListener('focus',()=>{if(current){void check();startPolling()}});
+ addEventListener('pageshow',()=>{if(current){void check();startPolling()}});
  refresh.onclick=()=>check(true);
  function clearCheckoutWait(){clearInterval(expiryCountdownTimer);expiryCountdownTimer=null;reviewWaitTimer.hidden=true;reviewWaitTimer.textContent=''}
  function showCheckoutWait(message,expiresAt){
@@ -166,9 +172,9 @@ export function mountMerchCheckout({button,getCart,getAccessToken,sendMessage,on
   updateButton();
  }
  const recent=el('button','View recent merchandise order');recent.type='button';recent.className='ghost';button.parentElement.after(recent);
- recent.onclick=()=>{current=cached()[0];if(current){check();if(!pollTimer)pollTimer=setInterval(()=>check(),5000)}else{message.textContent='No checkout has been started in this browser.';dialog.showModal()}};
+ recent.onclick=()=>{current=cached()[0];if(current){void check();startPolling()}else{message.textContent='No checkout has been started in this browser.';dialog.showModal()}};
  const query=new URLSearchParams(location.search),id=query.get('merch_order'),returned=query.has('merch_return');
- if(id||returned){current=id?cached().find(o=>o.id===id):cached()[0];query.delete('merch_order');query.delete('merch_return');query.delete('cancelled');history.replaceState(null,'',location.pathname+(query.size?'?'+query:'')+location.hash);if(current){check();pollTimer=setInterval(check,5000)}else{message.textContent='Open the order in the browser where checkout began, or contact GAC. Returning here does not confirm payment.';dialog.showModal()}}
+ if(id||returned){current=id?cached().find(o=>o.id===id):cached()[0];query.delete('merch_order');query.delete('merch_return');query.delete('cancelled');history.replaceState(null,'',location.pathname+(query.size?'?'+query:'')+location.hash);if(current){void check();startPolling()}else{message.textContent='Open the order in the browser where checkout began, or contact GAC. Returning here does not confirm payment.';dialog.showModal()}}
  void loadAvailability();
  return {update:updateButton,syncCart};
 }
