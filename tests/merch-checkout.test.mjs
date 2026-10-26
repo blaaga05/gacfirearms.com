@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createMerchHandler,merchandiseSettings,validateMerchShipping,hash} from '../supabase/functions/gac-merch-checkout/handler.mjs';
-import {merchandiseBreakdown,mayRestartMerchCheckout,merchandiseCartMatches,merchandiseCartMatchesLines,formatAddressCase,normalizeAddressSuggestion,formatMerchCheckoutCountdown,merchandiseCartHoldMessage} from '../merch-checkout.mjs';
+import {merchandiseBreakdown,createMerchOrderDialogIntent,mayRestartMerchCheckout,merchandiseCartMatches,merchandiseCartMatchesLines,formatAddressCase,normalizeAddressSuggestion,formatMerchCheckoutCountdown,merchandiseCartHoldMessage} from '../merch-checkout.mjs';
 import {observeTransaction} from '../supabase/functions/gac-payment-recovery/handler.mjs';
 import {createAddressSuggestionsHandler} from '../supabase/functions/gac-address-suggestions/handler.mjs';
 
@@ -36,6 +36,14 @@ test('order review puts calculated tax above the saved shipping charge and inclu
  const rows=merchandiseBreakdown({subtotal_cents:3000,tax_cents:240,tax_jurisdiction:'Houston',shipping_cents:895,total_cents:4135});
  assert.deepEqual(rows.map(row=>row.label),['Items','Houston sales tax','Shipping','Total']);
  assert.equal(rows[2].amount,895);assert.equal(rows[3].amount,4135);
+});
+
+test('background order status updates do not reopen a dismissed order popup',()=>{
+ const intent=createMerchOrderDialogIntent();
+ intent.request();assert.equal(intent.shouldOpen(false),true);
+ intent.dismiss();assert.equal(intent.shouldOpen(false),false);
+ intent.request();assert.equal(intent.shouldOpen(false),true);
+ assert.equal(intent.shouldOpen(true),false);
 });
 
 test('an expired checkout can restart only after verified no-payment status',()=>{
