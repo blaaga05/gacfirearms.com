@@ -1,5 +1,6 @@
 export function stockFor(product,size){const row=product?.stock?.find(r=>r.size===size);return Number.isInteger(row?.quantity)?row.quantity:null;}
 export function stockLabel(quantity){return quantity===null?'Availability to be confirmed':quantity===0?'Out of stock':quantity+' left in stock';}
+export function firstInStockSize(product){return product?.sizes?.find(size=>stockFor(product,size)>0)||null;}
 export function mountMerchInventory({client,panel,target=panel,action,status}){
  const el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e},read=async q=>{const{data,error}=await q;if(error)throw error;return data};
  let product=null,rows=[],epoch=0,request=null;
