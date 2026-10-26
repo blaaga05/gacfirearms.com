@@ -17,4 +17,4 @@ const sectionIds=['home','about','rifle','merch'];
 function navigate(){const id=location.hash.slice(1);const active=sectionIds.includes(id)?id:'home';for(const name of sectionIds)document.getElementById(name).hidden=name!==active;window.scrollTo(0,0)}
 addEventListener('hashchange',navigate);navigate();
 try{const response=await fetch('https://yuuagwxqhxiiybwjhome.supabase.co/rest/v1/gac_site_text?select=copy_key,text_value',{headers:{apikey:'sb_publishable_iYZBPKMeGQlAnst_uXBsRA_V0UL4z8L'}});if(response.ok){const copy=await response.json();for(const row of copy)for(const el of document.querySelectorAll('[data-copy]'))if(el.dataset.copy===row.copy_key)el.textContent=row.text_value}}catch{}
-</script><script type="module" src="./merch-store.mjs?v=20261026-merch-payment-return-reconcile"></script></body></html>
+</script><script type="module" src="./merch-store.mjs?v=20261026-live-checkout-copy"></script></body></html>
