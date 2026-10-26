@@ -37,6 +37,11 @@ export async function processNotification(env,data,fetcher=fetch){
  const {observeTransaction}=await import('../gac-payment-recovery/handler.mjs');
  const result=await observeTransaction(env,t,fetcher);
  const outcome=result.outcome==='credited'?'credited':['review','replacement'].includes(result.outcome)?'review':'ignored';
+ // A recognized GAC capture can arrive before its order row is visible, or
+ // before Authorize.Net's transaction details have settled. Keep it retryable
+ // instead of permanently completing the notification as ignored.
+ const invoice=String(t.order?.invoiceNumber||'');
+ if(outcome==='ignored'&&/^(?:GAM|GAC)[a-f\d]{17}$/i.test(invoice)&&!result.terminal)throw Error('Recognized GAC payment is not ready to reconcile; retry required');
  await db('gac_finish_authorizenet_notification',{p_notification:data.notificationId,p_outcome:outcome});
  return outcome;
 }
