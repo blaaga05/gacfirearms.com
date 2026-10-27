@@ -16,7 +16,7 @@ jobs:
       - name: Confirm Cloudflare is serving this checkout update
         env:
           SITE_URL: https://gacfirearms.com/
-          DEPLOY_MARKER: 20261027-location-hidden
+          DEPLOY_MARKER: 20261027-shared-firearms-masthead
         run: |
           for attempt in $(seq 1 30); do
             page=$(curl --silent --show-error --fail --max-time 20 \
