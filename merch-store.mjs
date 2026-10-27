@@ -13,7 +13,7 @@ function hasActiveCartHold(){try{return Date.parse(JSON.parse(localStorage.getIt
 function showPreviousCheckoutHold(expiresAt){clearInterval(cartHoldNoticeTimer);const update=()=>{$('merchCartNotice').textContent=merchandiseCartHoldMessage(expiresAt)};update();cartHoldNoticeTimer=setInterval(update,1000)}
 function syncCartHold(snapshot=cart){if(!checkout)return;checkout.syncCart(snapshot).then(result=>{if(result?.waitingForPreviousPayment)showPreviousCheckoutHold(result.expires_at);else{clearInterval(cartHoldNoticeTimer);cartHoldNoticeTimer=null}}).catch(error=>{status.textContent=error.message})}
 function save(syncHold=true){try{localStorage.setItem(CART_KEY,JSON.stringify(cart));if(!cartHoldNoticeTimer)$('merchCartNotice').textContent='Your cart is saved on this browser. Items connected to an active payment page remain reserved until it expires and GAC checks its status.'}catch{$('merchCartNotice').textContent='Browser storage is unavailable. Your cart will last until this page is closed.'}updateCount();if(syncHold)syncCartHold(cart)}
-function updateCount(){const n=cart.reduce((a,x)=>a+x.quantity,0);$('merchCartCount').textContent=String(n);$('merchCartOpen').setAttribute('aria-label','Open shopping cart, '+n+' items');checkout?.update()}
+function updateCount(){const n=cart.reduce((a,x)=>a+x.quantity,0);$('merchCartCount').textContent=String(n);$('merchCartCount').hidden=n===0;$('merchCartOpen').setAttribute('aria-label','Open shopping cart, '+n+' items');checkout?.update()}
 function picture(p){const i=el('img');i.src=p.image_path;i.alt=p.name;i.loading='lazy';i.onerror=()=>{i.hidden=true};return i}
 async function applyReservedAvailability(data){
  try{
