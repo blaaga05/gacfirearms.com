@@ -16,7 +16,7 @@ jobs:
       - name: Confirm Cloudflare is serving this checkout update
         env:
           SITE_URL: https://gacfirearms.com/
-          DEPLOY_MARKER: 20261028-hide-password-form
+          DEPLOY_MARKER: 20261028-profile-password
         run: |
           for attempt in $(seq 1 30); do
             page=$(curl --silent --show-error --fail --max-time 20 \
