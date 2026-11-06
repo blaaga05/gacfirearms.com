@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Confirm Cloudflare is serving this checkout update
         env:
-          SITE_URL: https://gacfirearms.com/
+          SITE_URL: https://gacfirearms.com/account.html
           DEPLOY_MARKER: 20261106-checkout-refresh-layout
         run: |
           for attempt in $(seq 1 30); do
