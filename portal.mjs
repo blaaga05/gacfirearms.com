@@ -74,7 +74,7 @@ export function mountPortal({client,api,status,action,refresh}){
   if(!('wakeLock' in navigator)){$('wheelWakeStatus').textContent='This browser may allow the screen to sleep. You can increase the screen timeout in your phone settings.';return;}
   if(wheelWakeLock&&!wheelWakeLock.released)return;
   if(wheelWakeLockRequest)return wheelWakeLockRequest;
-  wheelWakeLockRequest=(async()=>{try{const lock=await navigator.wakeLock.request('screen');if(panel!=='live'||document.visibilityState!=='visible'){await lock.release();return;}wheelWakeLock=lock;lock.addEventListener('release',()=>{if(wheelWakeLock===lock)wheelWakeLock=null;});$('wheelWakeStatus').textContent='Screen will stay awake while this wheel tab is open.';}catch{$('wheelWakeStatus').textContent='The browser could not keep this screen awake. You can increase the screen timeout in your phone settings.';}finally{wheelWakeLockRequest=null;}})();
+  wheelWakeLockRequest=(async()=>{try{const lock=await navigator.wakeLock.request('screen');if(panel!=='live'||document.visibilityState!=='visible'){await lock.release();return;}wheelWakeLock=lock;lock.addEventListener('release',()=>{if(wheelWakeLock===lock)wheelWakeLock=null;});$('wheelWakeStatus').textContent='';}catch{$('wheelWakeStatus').textContent='The browser could not keep this screen awake. You can increase the screen timeout in your phone settings.';}finally{wheelWakeLockRequest=null;}})();
   return wheelWakeLockRequest;
  }
  function releaseWheelAwake(){const lock=wheelWakeLock;wheelWakeLock=null;if(lock&&!lock.released)lock.release().catch(()=>{});}
