@@ -15,8 +15,8 @@ jobs:
     steps:
       - name: Confirm Cloudflare is serving this checkout update
         env:
-          SITE_URL: https://gacfirearms.com/
-          DEPLOY_MARKER: 20261109-facebook-pages
+          SITE_URL: https://gacfirearms.com/account.html
+          DEPLOY_MARKER: 20261110-active-collection-filter
         run: |
           for attempt in $(seq 1 30); do
             page=$(curl --silent --show-error --fail --max-time 20 \
