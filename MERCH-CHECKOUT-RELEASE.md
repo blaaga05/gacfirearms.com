@@ -9,6 +9,7 @@ Admin → Products & inventory lets the owner set each item's price, options, sh
 - The database setting starts with enabled = false.
 - Production Edge Function requests are rejected unless GAC_LIVE_MERCH_CHECKOUT_ENABLED=true.
 - The admin pricing control cannot turn payment acceptance on; the server-side gate must also be deliberately changed after release checks.
+- The owner can change the merchandise database switch in Admin → Payments. Production checkout is available only when that switch is on and the Edge Function secret is exactly `GAC_LIVE_MERCH_CHECKOUT_ENABLED=true`.
 - The storefront checkout button remains disabled until the server reports availability.
 - Sandbox mode requires the isolated sandbox Supabase project and a non-production site origin.
 
@@ -19,6 +20,8 @@ Keep the production environment gate unset and the database setting disabled unt
 The migration expects the current main-branch merchandise catalog, inventory, store-order tracking, payment-recovery, and payment-expiry migrations to be installed first. Then apply database/merch-checkout.sql followed by database/merch-checkout-hardening.sql. The checkout migration uses explicit function grants and private order tables; do not grant anon access to private order data.
 
 After the migration, verify owner-only access to shipping/tax settings and review orders, verify the public checkout-availability RPC is not executable by anon, and run tests/merch-checkout.sql in a rollback-only test environment.
+
+The owner checkout-control RPC can be enabled with `database/20261026_enable_merch_checkout_admin.sql`; this only controls the database switch and does not bypass the production Edge Function gate.
 
 For product-level shipping fields, apply `database/product-inventory-pricing.sql` after the checkout migrations and before deploying the matching product editor. Then apply `database/georgia-checkout-tax.sql` before deploying the matching checkout function. The owner edits each item's price, per-item shipping amount, public options, and stock in Admin → Products & inventory. No per-product tax rates are needed. Firearm listings and FastBound stay under Firearms & Compliance.
 
