@@ -1,3 +1,4 @@
+import {formatOrderReference} from './order-reference.mjs?v=20261028-ak-reference';
 const money=cents=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(cents/100);
 const text=(tag,value)=>{const e=document.createElement(tag);e.textContent=value;return e};
 const STATUS_LABELS={pending_fulfillment:"Paid · awaiting fulfillment",processing:"Processing",shipped:"Shipped",delivered:"Delivered",cancelled:"Cancelled"};
@@ -23,7 +24,7 @@ export function mountStoreOrdersAdmin({client,addAdmin,action,status,onNewOrders
   if(!orders.length){host.append(text("p","No merchandise checkout orders yet. This list will fill after main-site checkout is connected."));return;}
   for(const order of orders){
    const details=document.createElement("details");details.className="editable-member";
-   const summary=text("summary","Order "+order.order_number+" · "+order.customer_email+" · "+(STATUS_LABELS[order.fulfillment_status]||order.fulfillment_status)+" · "+money(order.total_cents));
+   const summary=text("summary","Order "+formatOrderReference(order)+" · "+order.customer_email+" · "+(STATUS_LABELS[order.fulfillment_status]||order.fulfillment_status)+" · "+money(order.total_cents));
    const body=document.createElement("div");body.style.cssText="display:grid;gap:10px;margin-top:16px";
    const itemSummary=(Array.isArray(order.items)?order.items:[]).map(item=>[item.name,item.size&&"Size "+item.size,item.quantity&&"Qty "+item.quantity].filter(Boolean).join(" · ")).join(" | ");
    body.append(text("p","Placed "+new Date(order.created_at).toLocaleString()+" · "+itemSummary));
@@ -47,7 +48,7 @@ export function mountStoreOrdersAdmin({client,addAdmin,action,status,onNewOrders
     const patch={fulfillment_status:nextStatus,carrier:carrier.value||null,tracking_number:tracking.value.trim()||null,tracking_url:url||null,shipped_at:nextStatus==="shipped"||nextStatus==="delivered"?(order.shipped_at||now):null,delivered_at:nextStatus==="delivered"?(order.delivered_at||now):null,updated_at:now,updated_by:userResult.data?.user?.id||null};
     const {error}=await client.from("gac_store_orders").update(patch).eq("id",order.id);
     if(error)throw error;
-    await load();status("Order "+order.order_number+" updated.");
+    await load();status("Order "+formatOrderReference(order)+" updated.");
    });
    body.append(fields,save);details.append(summary,body);host.append(details);
   }
