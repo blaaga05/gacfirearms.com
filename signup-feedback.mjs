@@ -11,7 +11,6 @@ export function signupFeedback(values,{requirementsLoaded=true,busy=false,minimu
   if (!values.age) missing.push('Check the confirmation that you are at least '+minimumAge+'.');
   if (!values.law) missing.push('Check the agreement to follow local, state and federal laws.');
   if (!values.accuracy) missing.push('Check the confirmation that your information is accurate.');
-  if (!values.recognitionAck) missing.push('Check the digital recognition purchase acknowledgment.');
   if (!requirementsLoaded) missing.push('Membership requirements are still loading. If this continues, reload the page.');
   return {errors,missing,ready:missing.length===0&&!busy,title:busy?'Creating your account…':missing.length?'To enable Create account, complete the following:':'Everything is complete. You can create your account.'};
 }
