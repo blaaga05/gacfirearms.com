@@ -1,4 +1,4 @@
-import {mountMerchInventory} from './merch-inventory.mjs?v=20261024-ga-destination-tax2';
+import {mountMerchInventory} from './merch-inventory.mjs?v=20261114-decrease-stock';
 import {parsePrice,money} from './merch-cart.mjs?v=20261024-ga-destination-tax2';
 
 export function mountMerchAdmin({client,addAdmin,action,status}){
