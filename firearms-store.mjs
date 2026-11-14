@@ -1,5 +1,5 @@
-const SUPABASE_URL="https://yuuagwxqhxiiybwjhome.supabase.co";
-const KEY="sb_publishable_iYZBPKMeGQlAnst_uXBsRA_V0UL4z8L";
+const SUPABASE_URL="https://egrsgfukkramgbibqsbx.supabase.co";
+const KEY="sb_publishable_Vttu1L2cnuQhkrJw0V4rvA_ax4k1S7H";
 const products=document.getElementById("firearmProducts"),dialog=document.getElementById("firearmOrderDialog"),form=document.getElementById("firearmOrderForm");
 let selected=null;
 const make=(tag,content)=>{const e=document.createElement(tag);if(content!==undefined)e.textContent=content;return e};
