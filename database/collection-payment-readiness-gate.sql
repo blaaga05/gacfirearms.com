@@ -95,13 +95,12 @@ begin
  ) q;
 
  if c.archived_at is not null then blockers:=array_append(blockers,'Collection is archived.'); end if;
- if c.is_test then blockers:=array_append(blockers,'Test collections cannot be marked ready.'); end if;
- if c.state not in ('open','closed') then blockers:=array_append(blockers,'Open or close the collection before drawing.'); end if;
- if assigned<c.quantity then blockers:=array_append(blockers,'Not all numbers are assigned ('||assigned||' of '||c.quantity||').'); end if;
+  if c.state not in ('open','closed') then blockers:=array_append(blockers,'Open or close the collection before drawing.'); end if;
+ if not c.is_test and assigned<c.quantity then blockers:=array_append(blockers,'Not all numbers are assigned ('||assigned||' of '||c.quantity||').'); end if;
  if eligible<remaining_spins then blockers:=array_append(blockers,'There are not enough eligible numbers for the remaining spins.'); end if;
- if uncaptured>0 then blockers:=array_append(blockers,uncaptured||' paid order(s) do not have a matching captured Authorize.Net transaction.'); end if;
- if open_reviews>0 then blockers:=array_append(blockers,open_reviews||' payment review(s) are unresolved.'); end if;
- if open_allocations>0 then blockers:=array_append(blockers,open_allocations||' protected or incomplete payment allocation(s) remain.'); end if;
+ if not c.is_test and uncaptured>0 then blockers:=array_append(blockers,uncaptured||' paid order(s) do not have a matching captured Authorize.Net transaction.'); end if;
+ if not c.is_test and open_reviews>0 then blockers:=array_append(blockers,open_reviews||' payment review(s) are unresolved.'); end if;
+ if not c.is_test and open_allocations>0 then blockers:=array_append(blockers,open_allocations||' protected or incomplete payment allocation(s) remain.'); end if;
  if remaining_spins=0 then blockers:=array_append(blockers,'All configured spins are already complete.'); end if;
 
  return jsonb_build_object(
@@ -109,6 +108,7 @@ begin
   'collection_id',c.id,
   'callsign',c.callsign,
   'state',c.state,
+  'is_test',c.is_test,
   'quantity',c.quantity,
   'assigned',assigned,
   'eligible_numbers',eligible,
@@ -173,69 +173,6 @@ begin
    order by a.updated_at desc limit 100
   ) x
  );
-end
-$function$;
-
-create or replace function public.gac_draw_due_collection(p_collection uuid)
-returns public.gac_recognitions
-language plpgsql
-security definer
-set search_path to ''
-as $function$
-declare
- c public.gac_collections;
- result public.gac_recognitions;
- readiness jsonb;
- n integer;
- sample bigint;
- ceiling bigint;
- bytes bytea;
- chosen gac_private.recognition_entries;
- round_number integer;
-begin
- select * into strict c from public.gac_collections where id=p_collection for update;
- select * into result from public.gac_recognitions where collection_id=p_collection order by spin_number desc limit 1;
- if found then
-  if c.state='recognized' or result.spin_number>=c.spin_count
-   or now()<result.selected_at+make_interval(secs=>(c.wheel_settings->>'duration')::integer+c.spin_pause_seconds) then
-   return result;
-  end if;
- elsif c.state not in ('open','closed') or c.recognition_at is null or c.recognition_at>now() then
-  raise exception 'Collection is not due';
- end if;
-
- readiness:=gac_private.collection_payment_readiness(p_collection);
- if not coalesce((readiness->>'ready')::boolean,false) then
-  raise exception 'Collection is not ready to spin: %',
-   array_to_string(array(select jsonb_array_elements_text(readiness->'blockers')),' ');
- end if;
-
- if result.collection_id is null then
-  insert into gac_private.recognition_entries(collection_id,edition_number,member_id,callsign_snapshot)
-  select ent.collection_id,ent.edition_number,ent.user_id,p.callsign
-  from public.gac_numbers ent join public.gac_profiles p on p.user_id=ent.user_id
-  where ent.collection_id=p_collection on conflict do nothing;
- end if;
- select count(*) into n from gac_private.recognition_entries e
- where e.collection_id=p_collection and not exists(
-  select 1 from public.gac_recognitions r where r.collection_id=e.collection_id and r.edition_number=e.edition_number);
- if n=0 then raise exception 'No eligible purchased numbers';end if;
- round_number:=coalesce(result.spin_number,0)+1;
- ceiling:=4294967296-(4294967296 % n);
- loop
-  bytes:=extensions.gen_random_bytes(4);
-  sample:=get_byte(bytes,0)::bigint*16777216+get_byte(bytes,1)::bigint*65536+get_byte(bytes,2)::bigint*256+get_byte(bytes,3)::bigint;
-  exit when sample<ceiling;
- end loop;
- select * into strict chosen from gac_private.recognition_entries e
- where e.collection_id=p_collection and not exists(
-  select 1 from public.gac_recognitions r where r.collection_id=e.collection_id and r.edition_number=e.edition_number)
- order by e.edition_number offset(sample%n) limit 1;
- insert into public.gac_recognitions(collection_id,spin_number,edition_number,member_id,selected_callsign,eligible_number_count)
- values(p_collection,round_number,chosen.edition_number,chosen.member_id,chosen.callsign_snapshot,n)
- returning * into result;
- update public.gac_collections set state=case when round_number>=c.spin_count or n=1 then 'recognized' else 'closed' end where id=p_collection;
- return result;
 end
 $function$;
 
