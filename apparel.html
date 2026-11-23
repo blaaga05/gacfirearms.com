@@ -8,7 +8,13 @@
   <title>Custom Apparel | Gassett Arms Company</title>
   <link rel="icon" href="assets/gac-mark.png" type="image/png" />
   <link rel="stylesheet" href="styles.css" />
-</head>
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({ appId: "ea15f827-d569-4965-91b9-dec69c6de251" });
+  });
+</script></head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header" id="top">
