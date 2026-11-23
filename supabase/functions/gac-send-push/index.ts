@@ -52,8 +52,12 @@ Deno.serve(async (req: Request) => {
     const title = typeof body?.title === "string" ? body.title.trim() : "";
     const message = typeof body?.message === "string" ? body.message.trim() : "";
     const url = typeof body?.url === "string" ? body.url.trim() : "";
+    const subscriptionId = typeof body?.subscriptionId === "string" ? body.subscriptionId.trim() : "";
     if (!title || title.length > 80 || !message || message.length > 240) {
       return reply({ error: "Enter a title (up to 80 characters) and message (up to 240 characters)." }, 400);
+    }
+    if (!/^[0-9a-f-]{36}$/i.test(subscriptionId)) {
+      return reply({ error: "A valid subscribed browser/device is required for this test send." }, 400);
     }
     if (url) {
       try {
@@ -65,7 +69,7 @@ Deno.serve(async (req: Request) => {
 
     const notification: Record<string, unknown> = {
       app_id: ONESIGNAL_APP_ID,
-      included_segments: ["Subscribed Users"],
+      include_subscription_ids: [subscriptionId],
       headings: { en: title },
       contents: { en: message },
     };
