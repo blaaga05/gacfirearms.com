@@ -52,13 +52,11 @@ Deno.serve(async (req: Request) => {
     const title = typeof body?.title === "string" ? body.title.trim() : "";
     const message = typeof body?.message === "string" ? body.message.trim() : "";
     const url = typeof body?.url === "string" ? body.url.trim() : "";
-    const subscriptionId = typeof body?.subscriptionId === "string" ? body.subscriptionId.trim() : "";
+    const mode = body?.mode === "all_members" ? "all_members" : body?.mode === "test" ? "test" : "";
     if (!title || title.length > 80 || !message || message.length > 240) {
       return reply({ error: "Enter a title (up to 80 characters) and message (up to 240 characters)." }, 400);
     }
-    if (!/^[0-9a-f-]{36}$/i.test(subscriptionId)) {
-      return reply({ error: "A valid subscribed browser/device is required for this test send." }, 400);
-    }
+    if (!mode) return reply({ error: "Choose a supported push audience." }, 400);
     if (url) {
       try {
         if (new URL(url).origin !== SITE_ORIGIN) return reply({ error: "Push links must point to gacfirearms.com." }, 400);
@@ -67,9 +65,46 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    let audience: Record<string, unknown>;
+    let targetedMemberAccounts = 0;
+    if (mode === "test") {
+      const subscriptionId = typeof body?.subscriptionId === "string" ? body.subscriptionId.trim() : "";
+      if (!/^[0-9a-f-]{36}$/i.test(subscriptionId)) {
+        return reply({ error: "A valid subscribed browser/device is required for this test send." }, 400);
+      }
+      audience = { include_subscription_ids: [subscriptionId] };
+    } else {
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!serviceKey) return reply({ error: "Member targeting is not configured." }, 503);
+      const memberResponse = await fetch(
+        supabaseUrl + "/rest/v1/gac_profiles?select=user_id&status=eq.active&limit=2001",
+        {
+          headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey },
+          signal: AbortSignal.timeout(10000),
+        },
+      );
+      if (!memberResponse.ok) {
+        await memberResponse.body?.cancel();
+        return reply({ error: "Could not load active GAC member accounts." }, 502);
+      }
+      const members = await memberResponse.json();
+      const externalIds = Array.isArray(members)
+        ? members.map((member: Record<string, unknown>) => member.user_id).filter((id: unknown) => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id))
+        : [];
+      if (externalIds.length > 2000) return reply({ error: "The member list exceeds OneSignal's 2,000-user request limit." }, 413);
+      targetedMemberAccounts = externalIds.length;
+      if (!targetedMemberAccounts) {
+        return reply({ success: true, id: null, recipients: 0, targetedMemberAccounts: 0 });
+      }
+      audience = {
+        include_aliases: { external_id: externalIds },
+        target_channel: "push",
+      };
+    }
+
     const notification: Record<string, unknown> = {
       app_id: ONESIGNAL_APP_ID,
-      include_subscription_ids: [subscriptionId],
+      ...audience,
       headings: { en: title },
       contents: { en: message },
     };
@@ -87,7 +122,12 @@ Deno.serve(async (req: Request) => {
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) return reply({ error: "OneSignal could not send the notification. Check the OneSignal app and server key." }, 502);
-    return reply({ success: true, id: result.id || null, recipients: result.recipients ?? null });
+    return reply({
+      success: true,
+      id: result.id || null,
+      recipients: result.recipients ?? 0,
+      targetedMemberAccounts,
+    });
   } catch {
     return reply({ error: "The push notification could not be sent. Try again shortly." }, 502);
   }
