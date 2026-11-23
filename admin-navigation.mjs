@@ -5,7 +5,7 @@ export const ADMIN_SECTIONS=[
  {id:'firearms',label:'Firearms & Compliance',panels:[['firearms','Firearm inventory'],['fastbound','FastBound connection']]},
  {id:'orders',label:'Orders & Shipping',panels:[['storeOrders','Order oversight & shipping']]},
  {id:'payments',label:'Payments',panels:[['payments','Checkout controls, transactions & refunds']]},
- {id:'settings',label:'Settings',panels:[['rules','Enrollment requirements']]}
+ {id:'settings',label:'Settings',panels:[['rules','Enrollment requirements'],['pushSubscribers','Push subscribers']]}
 ];
 export function mountAdminNavigation({admin,nav,menu=null,panels,onSelect=()=>{}}){
  const badgeText=count=>String(Math.max(0,Math.floor(Number(count)||0)));const menuSummary=menu?.closest('details')?.querySelector('summary');let menuSummaryBadge=menuSummary?.querySelector('.admin-menu-summary-indicator');if(menuSummary&&!menuSummaryBadge){menuSummaryBadge=document.createElement('span');menuSummaryBadge.className='admin-new-indicator admin-menu-summary-indicator';menuSummaryBadge.hidden=true;menuSummaryBadge.setAttribute('aria-hidden','true');menuSummary.append(menuSummaryBadge);}const groups=new Map(),aliases=new Map(),buttons=new Map(),pages=new Map(),firstPage=new Map(),indicators=new Map(),pageIndicators=new Map(),menuButtons=new Map(),menuIndicators=new Map(),menuSections=[],signals=new Map();
