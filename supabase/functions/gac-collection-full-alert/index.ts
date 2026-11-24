@@ -220,6 +220,86 @@ Deno.serve(async (req: Request) => {
         ownerMessageFailed++;
       }
     }
+    let claimedOwnerOrders: unknown = [];
+    try {
+      claimedOwnerOrders = await rpc("gac_claim_owner_order_pushes", { p_limit: 20 });
+    } catch (error) {
+      console.error("Owner order push queue is not available:", error instanceof Error ? error.message : String(error));
+    }
+    const ownerOrders = Array.isArray(claimedOwnerOrders)
+      ? claimedOwnerOrders as Array<Record<string, unknown>>
+      : [];
+    let ownerOrderSent = 0;
+    let ownerOrderFailed = 0;
+
+    for (const ownerOrder of ownerOrders) {
+      const queueId = typeof ownerOrder.queue_id === "string" ? ownerOrder.queue_id : "";
+      try {
+        const ownerIds = Array.isArray(ownerOrder.owner_ids)
+          ? ownerOrder.owner_ids.filter((id): id is string => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id))
+          : [];
+        if (!queueId || ownerIds.length === 0) throw new Error("No owner account is available for this order alert");
+
+        const eventType = typeof ownerOrder.event_type === "string" ? ownerOrder.event_type : "";
+        const itemLabel = typeof ownerOrder.item_label === "string" ? ownerOrder.item_label.trim().slice(0, 100) || "GAC order" : "GAC order";
+        const orderReference = typeof ownerOrder.order_reference === "string" ? ownerOrder.order_reference.trim().slice(0, 80) : "";
+        let title = "New GAC order";
+        let contents = "A new order is ready for review in your GAC owner account.";
+
+        if (eventType === "member_purchase") {
+          title = "New callsign purchase";
+          contents = "A member bought numbers in " + itemLabel + ". Open GAC to review.";
+        } else if (eventType === "merch_order") {
+          title = "New merchandise order";
+          contents = (orderReference ? "Order " + orderReference : "A merchandise order") + " is paid and awaiting fulfillment.";
+        } else if (eventType === "firearm_request") {
+          title = "New firearm order request";
+          contents = itemLabel + " request submitted. Open GAC to review.";
+        } else if (eventType === "firearm_checkout") {
+          title = "Firearm order ready for review";
+          contents = itemLabel + " was authorized and is ready for review.";
+        }
+
+        const notification = await fetch("https://api.onesignal.com/notifications", {
+          method: "POST",
+          headers: {
+            Authorization: "Key " + oneSignalKey,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            app_id: ONESIGNAL_APP_ID,
+            include_aliases: { external_id: ownerIds },
+            target_channel: "push",
+            headings: { en: title },
+            contents: { en: contents },
+            url: SITE_ORIGIN + "/account.html",
+          }),
+          signal: AbortSignal.timeout(20000),
+        });
+        if (!notification.ok) {
+          await notification.body?.cancel();
+          throw new Error("OneSignal returned HTTP " + notification.status);
+        }
+        await rpc("gac_finish_owner_order_push", {
+          p_queue_id: queueId,
+          p_success: true,
+          p_error: null,
+        });
+        ownerOrderSent++;
+      } catch (error) {
+        if (queueId) {
+          try {
+            await rpc("gac_finish_owner_order_push", {
+              p_queue_id: queueId,
+              p_success: false,
+              p_error: error instanceof Error ? error.message : "Owner order push failed",
+            });
+          } catch { /* Leave the lease to expire so the scheduled job can retry. */ }
+        }
+        ownerOrderFailed++;
+      }
+    }
     return reply({
       success: true,
       processed: alerts.length,
@@ -231,6 +311,9 @@ Deno.serve(async (req: Request) => {
       ownerMessageProcessed: ownerMessages.length,
       ownerMessageSent,
       ownerMessageFailed,
+      ownerOrderProcessed: ownerOrders.length,
+      ownerOrderSent,
+      ownerOrderFailed,
     });
   } catch (error) {
     console.error("gac-collection-full-alert failed:", error instanceof Error ? error.message : String(error));
