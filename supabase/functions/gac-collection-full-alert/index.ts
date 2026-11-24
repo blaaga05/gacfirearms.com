@@ -159,6 +159,67 @@ Deno.serve(async (req: Request) => {
         recognitionFailed++;
       }
     }
+    let claimedOwnerMessages: unknown = [];
+    try {
+      claimedOwnerMessages = await rpc("gac_claim_owner_message_pushes", { p_limit: 20 });
+    } catch (error) {
+      console.error("Owner message push queue is not available:", error instanceof Error ? error.message : String(error));
+    }
+    const ownerMessages = Array.isArray(claimedOwnerMessages)
+      ? claimedOwnerMessages as Array<Record<string, unknown>>
+      : [];
+    let ownerMessageSent = 0;
+    let ownerMessageFailed = 0;
+
+    for (const ownerMessage of ownerMessages) {
+      const queueId = typeof ownerMessage.queue_id === "string" ? ownerMessage.queue_id : "";
+      try {
+        const ownerIds = Array.isArray(ownerMessage.owner_ids)
+          ? ownerMessage.owner_ids.filter((id): id is string => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id))
+          : [];
+        if (!queueId || ownerIds.length === 0) throw new Error("No owner account is available for this message alert");
+
+        const memberCallsign = typeof ownerMessage.member_callsign === "string" ? ownerMessage.member_callsign.trim().slice(0, 64) || "A GAC member" : "A GAC member";
+        const notification = await fetch("https://api.onesignal.com/notifications", {
+          method: "POST",
+          headers: {
+            Authorization: "Key " + oneSignalKey,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            app_id: ONESIGNAL_APP_ID,
+            include_aliases: { external_id: ownerIds },
+            target_channel: "push",
+            headings: { en: "New GAC member message" },
+            contents: { en: memberCallsign + " sent you a private message. Open GAC Messages to reply." },
+            url: SITE_ORIGIN + "/account.html?openMessages=1",
+          }),
+          signal: AbortSignal.timeout(20000),
+        });
+        if (!notification.ok) {
+          await notification.body?.cancel();
+          throw new Error("OneSignal returned HTTP " + notification.status);
+        }
+        await rpc("gac_finish_owner_message_push", {
+          p_queue_id: queueId,
+          p_success: true,
+          p_error: null,
+        });
+        ownerMessageSent++;
+      } catch (error) {
+        if (queueId) {
+          try {
+            await rpc("gac_finish_owner_message_push", {
+              p_queue_id: queueId,
+              p_success: false,
+              p_error: error instanceof Error ? error.message : "Owner message push failed",
+            });
+          } catch { /* Leave the lease to expire so the scheduled job can retry. */ }
+        }
+        ownerMessageFailed++;
+      }
+    }
     return reply({
       success: true,
       processed: alerts.length,
@@ -167,6 +228,9 @@ Deno.serve(async (req: Request) => {
       recognitionProcessed: recognitions.length,
       recognitionSent,
       recognitionFailed,
+      ownerMessageProcessed: ownerMessages.length,
+      ownerMessageSent,
+      ownerMessageFailed,
     });
   } catch (error) {
     console.error("gac-collection-full-alert failed:", error instanceof Error ? error.message : String(error));
