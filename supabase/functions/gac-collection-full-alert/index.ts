@@ -179,7 +179,7 @@ Deno.serve(async (req: Request) => {
           : [];
         if (!queueId || ownerIds.length === 0) throw new Error("No owner account is available for this message alert");
 
-        const memberCallsign = typeof ownerMessage.member_callsign === "string" ? ownerMessage.member_callsign : "A GAC member";
+        const memberCallsign = typeof ownerMessage.member_callsign === "string" ? ownerMessage.member_callsign.trim().slice(0, 64) || "A GAC member" : "A GAC member";
         const notification = await fetch("https://api.onesignal.com/notifications", {
           method: "POST",
           headers: {
