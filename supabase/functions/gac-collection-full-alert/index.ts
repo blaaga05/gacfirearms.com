@@ -131,7 +131,7 @@ Deno.serve(async (req: Request) => {
             include_aliases: { external_id: [memberId] },
             target_channel: "push",
             headings: { en: "You were recognized!" },
-            contents: { en: "Congrats, " + memberCallsign + "! Your number #" + editionNumber + " in " + groupCallsign + ". Check your messages at GAC." },
+            contents: { en: "Your number #" + editionNumber + " in " + groupCallsign + " has been selected! Check your messages at GAC." },
             url: SITE_ORIGIN + "/account.html",
           }),
           signal: AbortSignal.timeout(20000),
