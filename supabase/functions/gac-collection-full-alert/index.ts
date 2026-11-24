@@ -115,8 +115,7 @@ Deno.serve(async (req: Request) => {
         const memberCallsign = typeof recognition.member_callsign === "string" ? recognition.member_callsign : "Member";
         const groupCallsign = typeof recognition.group_callsign === "string" ? recognition.group_callsign : "GAC collection";
         const editionNumber = Number(recognition.edition_number);
-        const spinNumber = Number(recognition.spin_number);
-        if (!Number.isInteger(editionNumber) || !Number.isInteger(spinNumber)) {
+        if (!Number.isInteger(editionNumber)) {
           throw new Error("Recognition details are incomplete");
         }
 
@@ -132,7 +131,7 @@ Deno.serve(async (req: Request) => {
             include_aliases: { external_id: [memberId] },
             target_channel: "push",
             headings: { en: "You were recognized!" },
-            contents: { en: "Congrats, " + memberCallsign + "! Your number #" + editionNumber + " in " + groupCallsign + " was selected on spin " + spinNumber + ". Open My recognition to see your artwork." },
+            contents: { en: "Congrats, " + memberCallsign + "! Your number #" + editionNumber + " in " + groupCallsign + ". Check your messages at GAC." },
             url: SITE_ORIGIN + "/account.html",
           }),
           signal: AbortSignal.timeout(20000),
