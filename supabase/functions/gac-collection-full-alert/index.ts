@@ -98,7 +98,77 @@ Deno.serve(async (req: Request) => {
         failed++;
       }
     }
-    return reply({ success: true, processed: alerts.length, sent, failed });
+    const claimedRecognitions = await rpc("gac_claim_recognition_member_pushes", { p_limit: 20 });
+    const recognitions = Array.isArray(claimedRecognitions)
+      ? claimedRecognitions as Array<Record<string, unknown>>
+      : [];
+    let recognitionSent = 0;
+    let recognitionFailed = 0;
+
+    for (const recognition of recognitions) {
+      const queueId = typeof recognition.queue_id === "string" ? recognition.queue_id : "";
+      try {
+        const memberId = typeof recognition.member_id === "string" ? recognition.member_id : "";
+        if (!queueId || !/^[0-9a-f-]{36}$/i.test(memberId)) {
+          throw new Error("A valid recognized member account is required");
+        }
+        const memberCallsign = typeof recognition.member_callsign === "string" ? recognition.member_callsign : "Member";
+        const groupCallsign = typeof recognition.group_callsign === "string" ? recognition.group_callsign : "GAC collection";
+        const editionNumber = Number(recognition.edition_number);
+        const spinNumber = Number(recognition.spin_number);
+        if (!Number.isInteger(editionNumber) || !Number.isInteger(spinNumber)) {
+          throw new Error("Recognition details are incomplete");
+        }
+
+        const notification = await fetch("https://api.onesignal.com/notifications", {
+          method: "POST",
+          headers: {
+            Authorization: "Key " + oneSignalKey,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            app_id: ONESIGNAL_APP_ID,
+            include_aliases: { external_id: [memberId] },
+            target_channel: "push",
+            headings: { en: "You were recognized!" },
+            contents: { en: "Congrats, " + memberCallsign + "! Your number #" + editionNumber + " in " + groupCallsign + " was selected on spin " + spinNumber + ". Open My recognition to see your artwork." },
+            url: SITE_ORIGIN + "/account.html",
+          }),
+          signal: AbortSignal.timeout(20000),
+        });
+        if (!notification.ok) {
+          await notification.body?.cancel();
+          throw new Error("OneSignal returned HTTP " + notification.status);
+        }
+        await rpc("gac_finish_recognition_member_push", {
+          p_queue_id: queueId,
+          p_success: true,
+          p_error: null,
+        });
+        recognitionSent++;
+      } catch (error) {
+        if (queueId) {
+          try {
+            await rpc("gac_finish_recognition_member_push", {
+              p_queue_id: queueId,
+              p_success: false,
+              p_error: error instanceof Error ? error.message : "Recognition push delivery failed",
+            });
+          } catch { /* Leave the lease to expire so the scheduled job can retry. */ }
+        }
+        recognitionFailed++;
+      }
+    }
+    return reply({
+      success: true,
+      processed: alerts.length,
+      sent,
+      failed,
+      recognitionProcessed: recognitions.length,
+      recognitionSent,
+      recognitionFailed,
+    });
   } catch (error) {
     console.error("gac-collection-full-alert failed:", error instanceof Error ? error.message : String(error));
     return reply({ error: "Collection alert processing failed" }, 502);
