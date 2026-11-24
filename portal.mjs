@@ -10,7 +10,7 @@ import {mountOwnerPresence} from './owner-presence.mjs?v=20261028-owner-menu';
 import {mountSharedRecognition,personalRecognitionReady} from './shared-recognition.mjs?v=20261018-number-first';
 import {mountNumberReservations,collectionIsOpen} from './number-reservations.mjs?v=20261109-owner-number-reservations';
 import {wheelSequence} from './wheel-sequence.mjs?v=20261011-multi-spin';
-import {mountMessages} from './messages.mjs?v=20261028-new-item-dots';
+import {mountMessages} from './messages.mjs?v=20261124-private-message-push';
 export function mountPortal({client,api,status,action,refresh}){
  const $=id=>document.getElementById(id),el=(tag,text)=>{const x=document.createElement(tag);x.textContent=text;return x},read=async q=>{const {data,error}=await q;if(error)throw error;return data};
  const memberViewKey='gac-member-view:'+location.pathname;const getSavedView=(name,fallback,allowed)=>{try{const value=sessionStorage.getItem(memberViewKey+':'+name);return allowed.includes(value)?value:fallback}catch{return fallback}};const saveView=(name,value)=>{try{sessionStorage.setItem(memberViewKey+':'+name,value)}catch{}};
