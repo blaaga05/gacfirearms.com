@@ -52,7 +52,13 @@ Deno.serve(async (req: Request) => {
     const title = typeof body?.title === "string" ? body.title.trim() : "";
     const message = typeof body?.message === "string" ? body.message.trim() : "";
     const url = typeof body?.url === "string" ? body.url.trim() : "";
-    const mode = body?.mode === "all_members" ? "all_members" : body?.mode === "test" ? "test" : "";
+    const mode = body?.mode === "all_members"
+      ? "all_members"
+      : body?.mode === "member"
+      ? "member"
+      : body?.mode === "test"
+      ? "test"
+      : "";
     if (!title || title.length > 80 || !message || message.length > 240) {
       return reply({ error: "Enter a title (up to 80 characters) and message (up to 240 characters)." }, 400);
     }
@@ -76,22 +82,48 @@ Deno.serve(async (req: Request) => {
     } else {
       const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
       if (!serviceKey) return reply({ error: "Member targeting is not configured." }, 503);
-      const memberResponse = await fetch(
-        supabaseUrl + "/rest/v1/gac_profiles?select=user_id&status=eq.active&limit=2001",
-        {
-          headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey },
-          signal: AbortSignal.timeout(10000),
-        },
-      );
-      if (!memberResponse.ok) {
-        await memberResponse.body?.cancel();
-        return reply({ error: "Could not load active GAC member accounts." }, 502);
+
+      let externalIds: string[];
+      if (mode === "member") {
+        const memberId = typeof body?.memberId === "string" ? body.memberId.trim() : "";
+        if (!/^[0-9a-f-]{36}$/i.test(memberId)) {
+          return reply({ error: "A valid member account is required." }, 400);
+        }
+        const memberResponse = await fetch(
+          supabaseUrl + "/rest/v1/gac_profiles?select=user_id&user_id=eq." + encodeURIComponent(memberId) + "&status=eq.active&limit=1",
+          {
+            headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey },
+            signal: AbortSignal.timeout(10000),
+          },
+        );
+        if (!memberResponse.ok) {
+          await memberResponse.body?.cancel();
+          return reply({ error: "Could not verify the active member account." }, 502);
+        }
+        const members = await memberResponse.json();
+        externalIds = Array.isArray(members)
+          ? members.map((member: Record<string, unknown>) => member.user_id).filter((id: unknown) => typeof id === "string" && id.toLowerCase() === memberId.toLowerCase())
+          : [];
+        if (externalIds.length !== 1) return reply({ error: "This member account is not active." }, 404);
+      } else {
+        const memberResponse = await fetch(
+          supabaseUrl + "/rest/v1/gac_profiles?select=user_id&status=eq.active&limit=2001",
+          {
+            headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey },
+            signal: AbortSignal.timeout(10000),
+          },
+        );
+        if (!memberResponse.ok) {
+          await memberResponse.body?.cancel();
+          return reply({ error: "Could not load active GAC member accounts." }, 502);
+        }
+        const members = await memberResponse.json();
+        externalIds = Array.isArray(members)
+          ? members.map((member: Record<string, unknown>) => member.user_id).filter((id: unknown) => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id))
+          : [];
+        if (externalIds.length > 2000) return reply({ error: "The member list exceeds OneSignal's 2,000-user request limit." }, 413);
       }
-      const members = await memberResponse.json();
-      const externalIds = Array.isArray(members)
-        ? members.map((member: Record<string, unknown>) => member.user_id).filter((id: unknown) => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id))
-        : [];
-      if (externalIds.length > 2000) return reply({ error: "The member list exceeds OneSignal's 2,000-user request limit." }, 413);
+
       targetedMemberAccounts = externalIds.length;
       if (!targetedMemberAccounts) {
         return reply({ success: true, id: null, recipients: 0, targetedMemberAccounts: 0 });
