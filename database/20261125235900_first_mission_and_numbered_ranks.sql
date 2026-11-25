@@ -27,19 +27,19 @@ begin
   where not c.is_test and c.state in ('closed','recognized')
   group by o.user_id
  ),
- first_mission_status as (
-  select o.user_id,
-         exists(
-          select 1 from public.gac_numbers n
-          join public.gac_collections c on c.id=n.collection_id
-          where n.user_id=o.user_id and not c.is_test and c.state in ('open','closed')
-         )
-         and not exists(
-          select 1 from public.gac_numbers n
-          join public.gac_collections c on c.id=n.collection_id
-          where n.user_id=o.user_id and not c.is_test and c.state='recognized'
-         ) as available
+ first_played_group as (
+  select distinct on (n.user_id) n.user_id,c.state
   from online_members o
+  join public.gac_numbers n on n.user_id=o.user_id
+  join public.gac_collections c on c.id=n.collection_id
+  join public.gac_orders ord on ord.id=n.order_id
+  where not c.is_test and c.state in ('open','closed','recognized')
+  order by n.user_id,ord.created_at,c.created_at,c.id
+ ),
+ first_mission_status as (
+  select o.user_id,coalesce(f.state in ('open','closed'),false) as available
+  from online_members o
+  left join first_played_group f on f.user_id=o.user_id
  ),
  completed_regular_groups as (
   select o.user_id,c.id,c.created_at,
