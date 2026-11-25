@@ -36,6 +36,8 @@ Deno.serve(async (req: Request) => {
     if (!response.ok) throw new Error(name + " failed with HTTP " + response.status);
     return data;
   };
+  const pushEnabled = async (type: string) =>
+    await rpc("gac_push_notification_enabled", { p_type: type }) !== false;
 
   try {
     if (await rpc("gac_verify_collection_full_push_token", { p_token: token }) !== true) {
@@ -50,6 +52,10 @@ Deno.serve(async (req: Request) => {
     for (const alert of alerts) {
       const queueId = typeof alert.queue_id === "string" ? alert.queue_id : "";
       try {
+        if (!(await pushEnabled("collection_full"))) {
+          await rpc("gac_finish_collection_full_push_alert", { p_queue_id: queueId, p_success: true, p_error: null });
+          continue;
+        }
         const ownerIds = Array.isArray(alert.owner_ids)
           ? alert.owner_ids.filter((id): id is string => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id))
           : [];
@@ -108,6 +114,10 @@ Deno.serve(async (req: Request) => {
     for (const recognition of recognitions) {
       const queueId = typeof recognition.queue_id === "string" ? recognition.queue_id : "";
       try {
+        if (!(await pushEnabled("member_recognition"))) {
+          await rpc("gac_finish_recognition_member_push", { p_queue_id: queueId, p_success: true, p_error: null });
+          continue;
+        }
         const memberId = typeof recognition.member_id === "string" ? recognition.member_id : "";
         if (!queueId || !/^[0-9a-f-]{36}$/i.test(memberId)) {
           throw new Error("A valid recognized member account is required");
@@ -174,6 +184,10 @@ Deno.serve(async (req: Request) => {
     for (const ownerMessage of ownerMessages) {
       const queueId = typeof ownerMessage.queue_id === "string" ? ownerMessage.queue_id : "";
       try {
+        if (!(await pushEnabled("owner_message"))) {
+          await rpc("gac_finish_owner_message_push", { p_queue_id: queueId, p_success: true, p_error: null });
+          continue;
+        }
         const ownerIds = Array.isArray(ownerMessage.owner_ids)
           ? ownerMessage.owner_ids.filter((id): id is string => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id))
           : [];
@@ -235,6 +249,10 @@ Deno.serve(async (req: Request) => {
     for (const ownerOrder of ownerOrders) {
       const queueId = typeof ownerOrder.queue_id === "string" ? ownerOrder.queue_id : "";
       try {
+        if (!(await pushEnabled("owner_order"))) {
+          await rpc("gac_finish_owner_order_push", { p_queue_id: queueId, p_success: true, p_error: null });
+          continue;
+        }
         const ownerIds = Array.isArray(ownerOrder.owner_ids)
           ? ownerOrder.owner_ids.filter((id): id is string => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id))
           : [];
