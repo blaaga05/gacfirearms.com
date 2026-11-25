@@ -38,6 +38,25 @@ Deno.serve(async (req: Request) => {
   };
   const pushEnabled = async (type: string) =>
     await rpc("gac_push_notification_enabled", { p_type: type }) !== false;
+  const templateCache = new Map<string, { title: string; message: string }>();
+  const pushTemplate = async (
+    type: string,
+    fallback: { title: string; message: string },
+  ): Promise<{ title: string; message: string }> => {
+    const cached = templateCache.get(type);
+    if (cached) return cached;
+    const value = await rpc("gac_push_notification_template", { p_type: type }) as Record<string, unknown> | null;
+    const template = {
+      title: typeof value?.title === "string" ? value.title : fallback.title,
+      message: typeof value?.message === "string" ? value.message : fallback.message,
+    };
+    templateCache.set(type, template);
+    return template;
+  };
+  const renderTemplate = (template: string, values: Record<string, string | number>): string =>
+    template.replace(new RegExp("\\{([A-Za-z]+)\\}", "g"), (match, key: string) =>
+      Object.prototype.hasOwnProperty.call(values, key) ? String(values[key]) : match
+    );
 
   try {
     if (await rpc("gac_verify_collection_full_push_token", { p_token: token }) !== true) {
@@ -64,6 +83,12 @@ Deno.serve(async (req: Request) => {
         const callsign = typeof alert.callsign === "string" ? alert.callsign : "A GAC collection";
         const assigned = Number(alert.assigned) || 0;
         const quantity = Number(alert.quantity) || 0;
+        const template = await pushTemplate("collection_full", {
+          title: "Collection full — check payments",
+          message: "{callsign} is full ({assigned}/{quantity}). Review payments before the wheel.",
+        });
+        const title = renderTemplate(template.title, {});
+        const contents = renderTemplate(template.message, { callsign, assigned, quantity });
         const notification = await fetch("https://api.onesignal.com/notifications", {
           method: "POST",
           headers: {
@@ -75,8 +100,8 @@ Deno.serve(async (req: Request) => {
             app_id: ONESIGNAL_APP_ID,
             include_aliases: { external_id: ownerIds },
             target_channel: "push",
-            headings: { en: "Collection full — check payments" },
-            contents: { en: callsign + " is full (" + assigned + "/" + quantity + "). Review payments before the wheel." },
+            headings: { en: title },
+            contents: { en: contents },
             url: SITE_ORIGIN + "/account.html",
           }),
           signal: AbortSignal.timeout(20000),
@@ -128,6 +153,12 @@ Deno.serve(async (req: Request) => {
         if (!Number.isInteger(editionNumber)) {
           throw new Error("Recognition details are incomplete");
         }
+        const template = await pushTemplate("member_recognition", {
+          title: "You were recognized!",
+          message: "Your number #{number} in {group} has been selected! Check your messages at GAC.",
+        });
+        const title = renderTemplate(template.title, {});
+        const contents = renderTemplate(template.message, { number: editionNumber, group: groupCallsign });
 
         const notification = await fetch("https://api.onesignal.com/notifications", {
           method: "POST",
@@ -140,8 +171,8 @@ Deno.serve(async (req: Request) => {
             app_id: ONESIGNAL_APP_ID,
             include_aliases: { external_id: [memberId] },
             target_channel: "push",
-            headings: { en: "You were recognized!" },
-            contents: { en: "Your number #" + editionNumber + " in " + groupCallsign + " has been selected! Check your messages at GAC." },
+            headings: { en: title },
+            contents: { en: contents },
             url: SITE_ORIGIN + "/account.html",
           }),
           signal: AbortSignal.timeout(20000),
@@ -194,6 +225,12 @@ Deno.serve(async (req: Request) => {
         if (!queueId || ownerIds.length === 0) throw new Error("No owner account is available for this message alert");
 
         const memberCallsign = typeof ownerMessage.member_callsign === "string" ? ownerMessage.member_callsign.trim().slice(0, 64) || "A GAC member" : "A GAC member";
+        const template = await pushTemplate("owner_message", {
+          title: "New GAC member message",
+          message: "{callsign} sent you a private message. Open GAC Messages to reply.",
+        });
+        const title = renderTemplate(template.title, {});
+        const contents = renderTemplate(template.message, { callsign: memberCallsign });
         const notification = await fetch("https://api.onesignal.com/notifications", {
           method: "POST",
           headers: {
@@ -205,8 +242,8 @@ Deno.serve(async (req: Request) => {
             app_id: ONESIGNAL_APP_ID,
             include_aliases: { external_id: ownerIds },
             target_channel: "push",
-            headings: { en: "New GAC member message" },
-            contents: { en: memberCallsign + " sent you a private message. Open GAC Messages to reply." },
+            headings: { en: title },
+            contents: { en: contents },
             url: SITE_ORIGIN + "/account.html?openMessages=1",
           }),
           signal: AbortSignal.timeout(20000),
@@ -276,6 +313,21 @@ Deno.serve(async (req: Request) => {
         } else if (eventType === "firearm_checkout") {
           title = "Firearm order ready for review";
           contents = itemLabel + " was authorized and is ready for review.";
+        }
+
+        const orderTemplateType: Record<string, string> = {
+          member_purchase: "owner_order_member_purchase",
+          merch_order: "owner_order_merch_order",
+          firearm_request: "owner_order_firearm_request",
+          firearm_checkout: "owner_order_firearm_checkout",
+        };
+        const templateType = orderTemplateType[eventType];
+        if (templateType) {
+          const fallback = { title, message: contents };
+          const template = await pushTemplate(templateType, fallback);
+          const orderLabel = orderReference ? "Order " + orderReference : "A merchandise order";
+          title = renderTemplate(template.title, {});
+          contents = renderTemplate(template.message, { itemLabel, orderLabel });
         }
 
         const notification = await fetch("https://api.onesignal.com/notifications", {
