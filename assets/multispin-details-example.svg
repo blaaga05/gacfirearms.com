@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="205" viewBox="0 0 520 205" role="img" aria-labelledby="title desc">
+<title id="title">Three-spin callsign example</title>
+<desc id="desc">A three spins badge above the callsign group selector and a Details link below it.</desc>
+<rect x="1" y="1" width="518" height="203" rx="12" fill="#101711" stroke="#35473b" stroke-width="2"/>
+<rect x="22" y="18" width="106" height="28" rx="14" fill="#0b120d" stroke="#a9bc9b" stroke-width="1.5"/>
+<text x="75" y="37" fill="#d8e5d1" font-family="Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="1.5" text-anchor="middle">3 SPINS</text>
+<text x="24" y="76" fill="#cdd6d0" font-family="Arial,sans-serif" font-size="17">Callsign group</text>
+<path d="M163 66l8 9 8-9" fill="none" stroke="#c9dcc2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="22" y="88" width="476" height="54" fill="#0b120d" stroke="#a9bc9b" stroke-width="1.5"/>
+<text x="45" y="122" fill="#e8efe7" font-family="Arial,sans-serif" font-size="18">Example group · open</text>
+<path d="M466 109l8 8 8-8" fill="none" stroke="#c9dcc2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="22" y="177" fill="#b4d5bf" font-family="Arial,sans-serif" font-size="17" text-decoration="underline">Details</text>
+</svg>
