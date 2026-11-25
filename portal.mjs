@@ -1,5 +1,5 @@
 import {formatOrderReference} from './order-reference.mjs?v=20261028-ak-reference';
-import {mountAdminNavigation} from './admin-navigation.mjs?v=20261123-push-subscribers';
+import {mountAdminNavigation} from './admin-navigation.mjs?v=20261125-push-controls';
 import {mountMerchAdmin} from './merch-admin.mjs?v=20261114-decrease-stock';
 import {mountFirearmAdmin} from './firearm-admin.mjs?v=20261021-order-indicators';
 import {mountStoreOrdersAdmin} from './store-orders-admin.mjs?v=20261028-ak-reference';
