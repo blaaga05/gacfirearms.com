@@ -63,6 +63,24 @@ Deno.serve(async (req: Request) => {
       return reply({ error: "Enter a title (up to 80 characters) and message (up to 240 characters)." }, 400);
     }
     if (!mode) return reply({ error: "Choose a supported push audience." }, 400);
+    const notificationType = mode === "all_members" ? "all_members" : mode === "member" ? "member_direct" : null;
+    if (notificationType) {
+      const settingsKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!settingsKey) return reply({ error: "Push settings are unavailable." }, 503);
+      const settingResponse = await fetch(supabaseUrl + "/rest/v1/rpc/gac_push_notification_enabled", {
+        method: "POST",
+        headers: { apikey: settingsKey, Authorization: "Bearer " + settingsKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ p_type: notificationType }),
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!settingResponse.ok) {
+        await settingResponse.body?.cancel();
+        return reply({ error: "Could not verify the push notification setting." }, 503);
+      }
+      if (await settingResponse.json() === false) {
+        return reply({ error: "This push notification type is turned off in GAC settings." }, 409);
+      }
+    }
     if (url) {
       try {
         if (new URL(url).origin !== SITE_ORIGIN) return reply({ error: "Push links must point to gacfirearms.com." }, 400);
