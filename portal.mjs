@@ -5,7 +5,7 @@ import {mountFirearmAdmin} from './firearm-admin.mjs?v=20261021-order-indicators
 import {mountStoreOrdersAdmin} from './store-orders-admin.mjs?v=20261028-ak-reference';
 import {mountHostedCheckout} from './hosted-checkout.mjs?v=20261115-payment-readiness';
 import {mountManualAssignment} from './manual-assignment.mjs?v=20261110-closed-free-collections';
-import {mountAdminAnnouncements} from './admin-announcements.mjs?v=20261015-announcements';
+import {mountAdminAnnouncements} from './admin-announcements.mjs?v=20261125-push-announcements';
 import {mountOwnerPresence} from './owner-presence.mjs?v=20261028-owner-menu';
 import {mountSharedRecognition,personalRecognitionReady} from './shared-recognition.mjs?v=20261018-number-first';
 import {mountNumberReservations,collectionIsOpen} from './number-reservations.mjs?v=20261109-owner-number-reservations';
@@ -127,7 +127,7 @@ export function mountPortal({client,api,status,action,refresh}){
    {key:'owner_order_firearm_checkout',label:'Firearm checkout',titleDefault:'Firearm order ready for review',messageDefault:'{itemLabel} was authorized and is ready for review.',tokens:'{itemLabel}'}
   ]},
   {key:'member_recognition',title:'Recognition result',audience:'Selected member',detail:'Sent to the member whose number is selected, after the wheel stops.',templates:[{key:'member_recognition',label:'Recognition result alert',titleDefault:'You were recognized!',messageDefault:'Your number #{number} in {group} has been selected! Check your messages at GAC.',tokens:'{number}, {group}'}]},
-  {key:'all_members',title:'Group and wheel announcement',audience:'All active members with push enabled',detail:'Manual broadcast from the push composer, including recognition time updates.'},
+  {key:'all_members',title:'Push announcements to all members',audience:'All active members with push enabled',detail:'Sent from the announcement form or push composer to members with subscribed push devices.'},
   {key:'member_direct',title:'Private message push',audience:'Selected member',detail:'Optional push when you send a private message to one member.'}
  ];
  let pushNotificationSettings={enabled:{},templates:{}};
@@ -149,7 +149,7 @@ export function mountPortal({client,api,status,action,refresh}){
  }
  async function loadPushAdminTab(){await Promise.all([loadPushSubscribers(),loadPushNotificationSettings()]);}
 
- const pushDialog=document.createElement('dialog');pushDialog.className='recognition-popup';pushDialog.setAttribute('aria-labelledby','pushComposerTitle');pushDialog.innerHTML='<h2 id="pushComposerTitle">Compose push notification</h2><p>The test button sends only to this browser. The member option targets active GAC accounts linked to subscribed push devices. Browsers with notifications off cannot receive push.</p><label for="pushTitle">Title</label><input id="pushTitle" maxlength="80"><label for="pushMessage">Message</label><textarea id="pushMessage" maxlength="240" rows="4"></textarea><label for="pushUrl">Link (optional)</label><input id="pushUrl" type="url" placeholder="https://gacfirearms.com/"><div class="form-row"><button id="sendPushNow" type="button" class="secondary">Send test to this device</button><button id="sendPushAll" type="button">Send to all subscribed GAC members</button><button id="cancelPush" type="button" class="secondary">Cancel</button></div><p id="pushStatus" role="status"></p>';document.body.append(pushDialog);
+ const pushDialog=document.createElement('dialog');pushDialog.className='recognition-popup';pushDialog.setAttribute('aria-labelledby','pushComposerTitle');pushDialog.innerHTML='<h2 id="pushComposerTitle">Compose push notification</h2><p>The test button sends only to this browser. The member option targets active GAC accounts linked to subscribed push devices. Browsers with notifications off cannot receive push.</p><label for="pushTitle">Title</label><input id="pushTitle" maxlength="80"><label for="pushMessage">Message</label><textarea id="pushMessage" maxlength="240" rows="4"></textarea><label for="pushUrl">Link (optional)</label><input id="pushUrl" type="url" placeholder="https://gacfirearms.com/"><div class="form-row"><button id="sendPushNow" type="button" class="secondary">Send test to this device</button><button id="sendPushAll" type="button">Send push announcement to all members</button><button id="cancelPush" type="button" class="secondary">Cancel</button></div><p id="pushStatus" role="status"></p>';document.body.append(pushDialog);
  $('wheelForm').onsubmit=e=>{e.preventDefault();action(async()=>{await persistWheelSettings();status('Group and wheel settings saved for all viewers.');})};
  $('saveAndComposePush').onclick=()=>action(async()=>{await persistWheelSettings();$('pushTitle').value='GAC update · '+(active?.callsign||'Callsign group');$('pushMessage').value=$('wheelSchedule').value?'Recognition time set for '+new Date($('wheelSchedule').value).toLocaleString(undefined,{year:'numeric',month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})+'.':'Group and wheel settings updated.';$('pushUrl').value='https://gacfirearms.com/';$('pushStatus').textContent='';pushDialog.showModal();status('Settings saved. Review the push and send it only when you are ready.');});
  $('cancelPush').onclick=()=>pushDialog.close();
