@@ -47,7 +47,7 @@ export function memberService(client, origin) {
     async myPurchases() { const u=await user();return unwrap(await client.from('gac_orders').select('*,gac_numbers(edition_number,callsign_at_purchase),gac_collections(callsign)').eq('user_id',u.id).order('paid_at',{ascending:false})).map(o=>({...o,gac_numbers:o.purchased_numbers?.length?o.purchased_numbers:o.gac_numbers})); },
     async updateMyProfile(values) {
       const u=await user();
-      const allowed=['callsign','full_name','contact_email','phone','preferred_ffl_name','preferred_ffl_address'];
+      const allowed=['callsign','full_name','contact_email','phone','preferred_ffl_name','preferred_ffl_address','recognition_reminders_enabled'];
       const clean=Object.fromEntries(allowed.filter(k=>Object.hasOwn(values,k)).map(k=>[k,values[k]]));
       if (Object.hasOwn(clean,'callsign')) clean.callsign=validCallsign(clean.callsign);
       return unwrap(await client.from('gac_profiles').update(clean).eq('user_id',u.id).select('*').single());
