@@ -200,6 +200,73 @@ Deno.serve(async (req: Request) => {
         recognitionFailed++;
       }
     }
+    let claimedReminders: unknown = [];
+    try {
+      claimedReminders = await rpc("gac_claim_recognition_reminder_pushes", { p_limit: 20 });
+    } catch (error) {
+      console.error("Recognition reminder push queue is not available:", error instanceof Error ? error.message : String(error));
+    }
+    const reminders = Array.isArray(claimedReminders)
+      ? claimedReminders as Array<Record<string, unknown>>
+      : [];
+    let reminderSent = 0;
+    let reminderFailed = 0;
+
+    for (const reminder of reminders) {
+      const queueId = typeof reminder.queue_id === "string" ? reminder.queue_id : "";
+      try {
+        if (!(await pushEnabled("recognition_reminder"))) {
+          await rpc("gac_finish_recognition_reminder_push", { p_queue_id: queueId, p_success: true, p_error: null });
+          continue;
+        }
+        const memberId = typeof reminder.member_id === "string" ? reminder.member_id : "";
+        if (!queueId || !/^[0-9a-f-]{36}$/i.test(memberId)) {
+          throw new Error("A valid member account is required for the recognition reminder");
+        }
+        const groupCallsign = typeof reminder.group_callsign === "string" ? reminder.group_callsign : "GAC collection";
+        const template = await pushTemplate("recognition_reminder", {
+          title: "Recognition starts in 10 minutes",
+          message: "{group} recognition begins in 10 minutes.",
+        });
+        const title = renderTemplate(template.title, {});
+        const contents = renderTemplate(template.message, { group: groupCallsign });
+        const notification = await fetch("https://api.onesignal.com/notifications", {
+          method: "POST",
+          headers: {
+            Authorization: "Key " + oneSignalKey,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            app_id: ONESIGNAL_APP_ID,
+            include_aliases: { external_id: [memberId] },
+            target_channel: "push",
+            headings: { en: title },
+            contents: { en: contents },
+            url: SITE_ORIGIN + "/account.html",
+          }),
+          signal: AbortSignal.timeout(20000),
+        });
+        if (!notification.ok) {
+          await notification.body?.cancel();
+          throw new Error("OneSignal returned HTTP " + notification.status);
+        }
+        await rpc("gac_finish_recognition_reminder_push", { p_queue_id: queueId, p_success: true, p_error: null });
+        reminderSent++;
+      } catch (error) {
+        if (queueId) {
+          try {
+            await rpc("gac_finish_recognition_reminder_push", {
+              p_queue_id: queueId,
+              p_success: false,
+              p_error: error instanceof Error ? error.message : "Recognition reminder push failed",
+            });
+          } catch { /* Leave the lease to expire so the scheduled job can retry. */ }
+        }
+        reminderFailed++;
+      }
+    }
+
     let claimedOwnerMessages: unknown = [];
     try {
       claimedOwnerMessages = await rpc("gac_claim_owner_message_pushes", { p_limit: 20 });
@@ -378,6 +445,9 @@ Deno.serve(async (req: Request) => {
       recognitionProcessed: recognitions.length,
       recognitionSent,
       recognitionFailed,
+      reminderProcessed: reminders.length,
+      reminderSent,
+      reminderFailed,
       ownerMessageProcessed: ownerMessages.length,
       ownerMessageSent,
       ownerMessageFailed,
